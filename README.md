@@ -4,22 +4,22 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Framework: Dash & Pymoo](https://img.shields.io/badge/Framework-Dash%20%7C%20Pymoo-orange.svg)](https://pymoo.org/)
 
-An interactive web-based graphical platform for modeling, solving, and analyzing multi-objective, many-objective, and dynamic optimization problems. Powered by **Plotly Dash** and **Pymoo**.
+An interactive web-based graphical platform for modeling, solving, and analyzing multi-objective optimization problems using **NSGA-II**. Powered by **Plotly Dash** and **Pymoo**.
 
 ---
 
 ## Overview
 
-Evolutionary multi-objective optimization often requires manual scripting and post-processing of Pareto-optimal sets. This platform provides an end-to-end interface for formulating arbitrary optimization problems, tuning genetic operators, executing optimizations in real-time, and evaluating solutions through multi-criteria decision making.
+Multi-objective optimization often requires manual scripting and post-processing of non-dominated Pareto sets. This platform provides an intuitive, end-to-end web interface for formulating optimization problems, configuring genetic operators, executing **NSGA-II** in real-time, and evaluating Pareto-optimal trade-offs.
 
 ### Key Capabilities
 
-- **Problem Modeling**: Define decision variables (continuous, integer, binary), multiple objective functions, and constraints using safe mathematical expressions.
-- **Algorithm Support**: Out-of-the-box integration with NSGA-II, NSGA-III, MOEA/D, RM-MEDA, and MOPSO.
-- **Dynamic Optimization**: Includes the complete **CEC 2018 Dynamic Multi-Objective Problem suite (DF1–DF14)** with real-time environment shift tracking.
-- **Visual Analytics**: Interactive 2D/3D Pareto front scatter plots, parallel coordinate plots for high-dimensional objectives, and live convergence metrics (Hypervolume, IGD).
-- **Decision Support**: Integrated TOPSIS ranking, weighted sum, aspiration-level filtering, and solution trade-off exploration.
-- **Persistence & Export**: Save and load complete experiment states in JSON/YAML, export Pareto fronts to CSV, and export publication-ready figures.
+- **Problem Modeling**: Define continuous, integer, and binary decision variables, multiple objective functions, and constraints using safe mathematical expressions.
+- **Optimization Algorithm**: Powered by **NSGA-II** (Non-dominated Sorting Genetic Algorithm II) with configurable population size, generations, Simulated Binary Crossover (SBX), and Polynomial Mutation (PM).
+- **Dynamic Optimization**: Includes benchmark support for dynamic environments (such as the CEC 2018 benchmark suite) with time-dependent environment tracking.
+- **Visual Analytics**: Interactive 2D/3D Pareto front scatter plots, parallel coordinate plots, and live convergence tracking (Hypervolume, Spread, Spacing).
+- **Decision Support**: Multi-criteria evaluation, trade-off inspection, and solution sorting.
+- **Persistence & Export**: Save and load complete experiment states in JSON/YAML, export Pareto fronts to CSV, and inspect individual candidate solutions.
 
 ---
 
