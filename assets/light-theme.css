@@ -1,0 +1,362 @@
+/*
+ * Light Mode Theme — Multi-Objective Optimization Platform
+ * Applied when <html data-theme="light">
+ */
+
+body.light-mode {
+    --bg-base: #f6f8fa;
+    --bg-surface: #ffffff;
+    --bg-elevated: #f0f2f5;
+    --bg-hover: #e8ecf0;
+    --bg-active: #dde3ea;
+
+    --border: #d0d7de;
+    --border-subtle: #e8ecf0;
+    --border-accent: #0969da;
+
+    --accent: #0969da;
+    --accent-hover: #0550ae;
+    --success: #1a7f37;
+    --danger: #cf222e;
+    --warning: #9a6700;
+    --info: #0969da;
+
+    --text-primary: #1f2328;
+    --text-secondary: #656d76;
+    --text-muted: #9198a1;
+    --text-link: #0969da;
+}
+
+/* ── Base ─────────────────────────────────────────────────────────── */
+body.light-mode,
+body.light-mode #react-entry-point,
+body.light-mode #react-entry-point>div {
+    background: #f6f8fa !important;
+    color: #1f2328 !important;
+}
+
+body.light-mode .app-container {
+    background: #f6f8fa !important;
+}
+
+/* ── Navbar ───────────────────────────────────────────────────────── */
+body.light-mode .navbar-modern {
+    background: #ffffff !important;
+    border-bottom: 1px solid #d0d7de !important;
+}
+
+body.light-mode .navbar-title {
+    color: #1f2328 !important;
+    -webkit-text-fill-color: #1f2328 !important;
+}
+
+body.light-mode .navbar-subtitle {
+    color: #656d76 !important;
+}
+
+/* ── Sidebar ──────────────────────────────────────────────────────── */
+body.light-mode .sidebar {
+    background: #ffffff !important;
+    border-right: 1px solid #d0d7de !important;
+}
+
+body.light-mode .sidebar-container {
+    background: #ffffff !important;
+}
+
+body.light-mode .user-profile-card {
+    background: #f0f2f5 !important;
+    border: 1px solid #d0d7de !important;
+}
+
+body.light-mode .nav-button-inner {
+    color: #656d76 !important;
+}
+
+body.light-mode .nav-button-inner:hover {
+    background: #e8ecf0 !important;
+    color: #1f2328 !important;
+}
+
+body.light-mode .nav-button-inner.nav-active {
+    background: #dde3ea !important;
+    color: #0969da !important;
+    border-left: 2px solid #0969da !important;
+}
+
+body.light-mode .nav-button-inner.text-danger {
+    color: #cf222e !important;
+}
+
+/* ── Content ──────────────────────────────────────────────────────── */
+body.light-mode .content-area {
+    background: #f6f8fa !important;
+}
+
+body.light-mode .section-title {
+    color: #1f2328 !important;
+    -webkit-text-fill-color: #1f2328 !important;
+}
+
+body.light-mode .section-description {
+    color: #656d76 !important;
+}
+
+/* ── Cards ────────────────────────────────────────────────────────── */
+body.light-mode .card {
+    background: #ffffff !important;
+    border: 1px solid #d0d7de !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
+}
+
+body.light-mode .card:hover {
+    border-color: #b0b8c1 !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08) !important;
+}
+
+body.light-mode .card-header {
+    background: #f0f2f5 !important;
+    border-bottom: 1px solid #d0d7de !important;
+    color: #1f2328 !important;
+}
+
+body.light-mode .card-body {
+    background: #ffffff !important;
+    color: #1f2328 !important;
+}
+
+/* ── Forms ────────────────────────────────────────────────────────── */
+body.light-mode .form-label,
+body.light-mode .form-label-modern {
+    color: #656d76 !important;
+}
+
+body.light-mode .form-control,
+body.light-mode .form-select,
+body.light-mode input[type="number"],
+body.light-mode input[type="text"],
+body.light-mode input[type="email"],
+body.light-mode input[type="password"],
+body.light-mode textarea {
+    background: #ffffff !important;
+    border: 1px solid #d0d7de !important;
+    color: #1f2328 !important;
+}
+
+body.light-mode .form-control:focus,
+body.light-mode .form-select:focus,
+body.light-mode input:focus,
+body.light-mode textarea:focus {
+    background: #ffffff !important;
+    border-color: #0969da !important;
+    box-shadow: 0 0 0 2px rgba(9, 105, 218, 0.2) !important;
+    color: #1f2328 !important;
+}
+
+body.light-mode .form-control::placeholder,
+body.light-mode input::placeholder,
+body.light-mode textarea::placeholder {
+    color: #9198a1 !important;
+}
+
+body.light-mode .form-check-input {
+    background-color: #ffffff !important;
+    border: 1px solid #d0d7de !important;
+}
+
+body.light-mode .form-check-input:checked {
+    background-color: #0969da !important;
+    border-color: #0969da !important;
+}
+
+/* ── Buttons ──────────────────────────────────────────────────────── */
+body.light-mode .btn-primary {
+    background: #0969da !important;
+    border-color: #0969da !important;
+    color: #fff !important;
+}
+
+body.light-mode .btn-primary:hover {
+    background: #0550ae !important;
+    border-color: #0550ae !important;
+}
+
+body.light-mode .btn-success {
+    background: #1a7f37 !important;
+    border-color: #1a7f37 !important;
+    color: #fff !important;
+}
+
+body.light-mode .btn-danger {
+    background: #cf222e !important;
+    border-color: #cf222e !important;
+    color: #fff !important;
+}
+
+body.light-mode .btn-secondary {
+    background: #f0f2f5 !important;
+    border-color: #d0d7de !important;
+    color: #1f2328 !important;
+}
+
+body.light-mode .btn-secondary:hover {
+    background: #e8ecf0 !important;
+}
+
+body.light-mode .btn-outline-primary {
+    background: transparent !important;
+    border-color: #0969da !important;
+    color: #0969da !important;
+}
+
+body.light-mode .btn-outline-primary:hover {
+    background: rgba(9, 105, 218, 0.08) !important;
+}
+
+/* ── Tables ───────────────────────────────────────────────────────── */
+body.light-mode .dash-table-container {
+    border: 1px solid #d0d7de !important;
+}
+
+body.light-mode .dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner th {
+    background: #f0f2f5 !important;
+    color: #656d76 !important;
+    border-bottom: 1px solid #d0d7de !important;
+}
+
+body.light-mode .dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner td {
+    background: #ffffff !important;
+    color: #1f2328 !important;
+    border-bottom: 1px solid #e8ecf0 !important;
+}
+
+body.light-mode .dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner tr:hover td {
+    background: #e8ecf0 !important;
+}
+
+/* ── Alerts ───────────────────────────────────────────────────────── */
+body.light-mode .alert-success {
+    background: rgba(26, 127, 55, 0.08) !important;
+    color: #1a7f37 !important;
+    border-color: rgba(26, 127, 55, 0.25) !important;
+}
+
+body.light-mode .alert-danger {
+    background: rgba(207, 34, 46, 0.08) !important;
+    color: #cf222e !important;
+    border-color: rgba(207, 34, 46, 0.25) !important;
+}
+
+body.light-mode .alert-warning {
+    background: rgba(154, 103, 0, 0.08) !important;
+    color: #9a6700 !important;
+    border-color: rgba(154, 103, 0, 0.25) !important;
+}
+
+body.light-mode .alert-info {
+    background: rgba(9, 105, 218, 0.08) !important;
+    color: #0969da !important;
+    border-color: rgba(9, 105, 218, 0.25) !important;
+}
+
+/* ── Status Bar ───────────────────────────────────────────────────── */
+body.light-mode .status-bar {
+    background: #ffffff !important;
+    border-top: 1px solid #d0d7de !important;
+    color: #656d76 !important;
+}
+
+body.light-mode .progress {
+    background: #f0f2f5 !important;
+}
+
+body.light-mode .progress-bar {
+    background: #0969da !important;
+}
+
+/* ── Variable / Objective rows ────────────────────────────────────── */
+body.light-mode .variable-row,
+body.light-mode .objective-row,
+body.light-mode .constraint-row {
+    background: #ffffff !important;
+    border: 1px solid #d0d7de !important;
+}
+
+body.light-mode .variable-row:hover,
+body.light-mode .objective-row:hover,
+body.light-mode .constraint-row:hover {
+    border-color: #b0b8c1 !important;
+}
+
+/* ── Metric cards ─────────────────────────────────────────────────── */
+body.light-mode .metric-card {
+    background: #ffffff !important;
+    border: 1px solid #d0d7de !important;
+}
+
+body.light-mode .metric-value {
+    color: #1f2328 !important;
+    -webkit-text-fill-color: #1f2328 !important;
+}
+
+body.light-mode .metric-label {
+    color: #656d76 !important;
+}
+
+/* ── Login ────────────────────────────────────────────────────────── */
+body.light-mode .login-page {
+    background: #f6f8fa !important;
+}
+
+body.light-mode .login-card {
+    background: #ffffff !important;
+    border: 1px solid #d0d7de !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* ── Scrollbar ────────────────────────────────────────────────────── */
+body.light-mode ::-webkit-scrollbar-track {
+    background: #f6f8fa;
+}
+
+body.light-mode ::-webkit-scrollbar-thumb {
+    background: #d0d7de;
+}
+
+body.light-mode ::-webkit-scrollbar-thumb:hover {
+    background: #b0b8c1;
+}
+
+/* ── List groups ──────────────────────────────────────────────────── */
+body.light-mode .list-group-item {
+    background: #ffffff !important;
+    border: 1px solid #d0d7de !important;
+    color: #1f2328 !important;
+}
+
+body.light-mode .list-group-item:hover {
+    background: #e8ecf0 !important;
+}
+
+/* ── Text helpers ─────────────────────────────────────────────────── */
+body.light-mode .text-muted {
+    color: #656d76 !important;
+}
+
+body.light-mode h1,
+body.light-mode h2,
+body.light-mode h3,
+body.light-mode h4,
+body.light-mode h5,
+body.light-mode h6,
+body.light-mode p,
+body.light-mode span,
+body.light-mode label,
+body.light-mode div {
+    color: inherit;
+}
+
+/* ── Plotly charts — force white bg in light mode ─────────────────── */
+body.light-mode .js-plotly-plot .plotly .bg {
+    fill: #ffffff !important;
+}

@@ -1,0 +1,15 @@
+services:
+  moo-gui:
+    build: .
+    container_name: moo-gui-app
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./database:/app/database
+      - ./experiments:/app/experiments
+      - ./exports:/app/exports
+    environment:
+      - MOO_GUI_HOST=0.0.0.0
+      - MOO_GUI_PORT=8080
+      - MOO_GUI_DEBUG=false
+    restart: unless-stopped

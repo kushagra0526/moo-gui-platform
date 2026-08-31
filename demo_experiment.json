@@ -1,0 +1,65 @@
+{
+  "name": "Demo_Experiment",
+  "description": "Demonstration of core functionality",
+  "problem": {
+    "variables": [
+      {
+        "name": "x1",
+        "type": "continuous",
+        "lower_bound": 0.0,
+        "upper_bound": 1.0,
+        "initial_value": null
+      },
+      {
+        "name": "x2",
+        "type": "continuous",
+        "lower_bound": 0.0,
+        "upper_bound": 1.0,
+        "initial_value": null
+      },
+      {
+        "name": "x3",
+        "type": "continuous",
+        "lower_bound": 0.0,
+        "upper_bound": 1.0,
+        "initial_value": null
+      }
+    ],
+    "objectives": [
+      {
+        "name": "minimize_f1",
+        "direction": "minimize",
+        "expression": "x[0]",
+        "is_dynamic": false
+      },
+      {
+        "name": "minimize_f2",
+        "direction": "minimize",
+        "expression": "1 - sqrt(x[0])",
+        "is_dynamic": false
+      }
+    ],
+    "constraints": [],
+    "problem_type": "static"
+  },
+  "algorithm": {
+    "algorithm": "nsga2",
+    "population_size": 100,
+    "max_generations": 250,
+    "random_seed": 42,
+    "parameters": {
+      "sampling": "random",
+      "tournament_size": 2,
+      "tournament_pressure": 1.0,
+      "crossover_prob": 0.9,
+      "crossover_eta": 15,
+      "mutation_prob": 0.1,
+      "mutation_eta": 20
+    },
+    "many_objective_options": [],
+    "dynamic_options": []
+  },
+  "created_at": "2026-09-01T01:42:03.001137",
+  "modified_at": "2026-09-01T01:42:03.001279",
+  "results": null
+}

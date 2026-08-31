@@ -1,0 +1,30 @@
+/*
+ * dark-theme.css — base reset only.
+ * All visual styling is in professional-theme.css.
+ */
+
+html,
+body,
+#react-entry-point,
+#react-entry-point>div,
+._dash-loading {
+    background: #0d1117 !important;
+    color: #e6edf3 !important;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0d1117 !important;
+    color: #e6edf3 !important;
+    overflow-x: hidden;
+}
+
+/* No animated backgrounds */
+body::before,
+body::after {
+    display: none !important;
+}

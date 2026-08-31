@@ -1,0 +1,707 @@
+/*
+ * Research-Grade Theme — Multi-Objective Optimization Platform
+ * Design language: VS Code / Linear / scientific computing tools
+ * No gradients, no glows, no animations on structural elements.
+ */
+
+/* ── Reset & Base ─────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+:root {
+    --bg-base: #0d1117;
+    /* page background */
+    --bg-surface: #161b22;
+    /* cards, sidebar, navbar */
+    --bg-elevated: #1c2128;
+    /* inputs, table rows */
+    --bg-hover: #21262d;
+    /* hover state */
+    --bg-active: #262c36;
+    /* active/selected */
+
+    --border: #30363d;
+    /* default border */
+    --border-subtle: #21262d;
+    /* very subtle dividers */
+    --border-accent: #388bfd;
+    /* accent border (active nav, focus) */
+
+    --accent: #388bfd;
+    /* primary blue — muted, not neon */
+    --accent-hover: #58a6ff;
+    --success: #3fb950;
+    --danger: #f85149;
+    --warning: #d29922;
+    --info: #388bfd;
+
+    --text-primary: #e6edf3;
+    --text-secondary: #8b949e;
+    --text-muted: #484f58;
+    --text-link: #58a6ff;
+
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+
+    --font-sans: 'Inter', 'IBM Plex Sans', -apple-system, BlinkMacSystemFont,
+        'Segoe UI', sans-serif;
+    --font-mono: 'IBM Plex Mono', 'Fira Code', 'Courier New', monospace;
+}
+
+html,
+body,
+#react-entry-point,
+#react-entry-point>div,
+._dash-loading {
+    background: var(--bg-base) !important;
+    color: var(--text-primary) !important;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+/* Remove all animated backgrounds */
+body::before,
+body::after {
+    display: none !important;
+}
+
+/* ── Scrollbar ────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-base);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #484f58;
+}
+
+/* ── App Shell ────────────────────────────────────────────────────── */
+.app-container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-base) !important;
+}
+
+.container,
+.container-fluid,
+.row,
+.col {
+    background: transparent !important;
+}
+
+/* ── Navbar ───────────────────────────────────────────────────────── */
+.navbar-modern {
+    background: var(--bg-surface) !important;
+    border-bottom: 1px solid var(--border) !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    padding: 0 1.25rem;
+    height: 52px;
+}
+
+.navbar-title {
+    color: var(--text-primary) !important;
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
+    background: none !important;
+    -webkit-background-clip: unset !important;
+    -webkit-text-fill-color: var(--text-primary) !important;
+    background-clip: unset !important;
+    text-shadow: none !important;
+    letter-spacing: 0 !important;
+}
+
+.navbar-subtitle {
+    color: var(--text-secondary) !important;
+    font-size: 0.78rem !important;
+    font-weight: 400 !important;
+}
+
+/* Remove the animated border line on navbar */
+.navbar-modern::after {
+    display: none !important;
+}
+
+/* ── Sidebar ──────────────────────────────────────────────────────── */
+.sidebar {
+    background: var(--bg-surface) !important;
+    border-right: 1px solid var(--border) !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+}
+
+/* Remove animated sidebar glow */
+.sidebar::before {
+    display: none !important;
+}
+
+.sidebar-container {
+    display: flex;
+    flex-direction: column;
+    padding: 0.75rem 0.5rem;
+}
+
+/* User profile — plain, no gradient */
+.user-profile-card {
+    background: var(--bg-elevated) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius-md) !important;
+    box-shadow: none !important;
+    animation: none !important;
+    padding: 0.75rem !important;
+    margin-bottom: 0.75rem;
+}
+
+.user-profile-card::before {
+    display: none !important;
+}
+
+/* Nav links */
+.nav-link-item {
+    display: block;
+    text-decoration: none !important;
+    margin-bottom: 2px;
+}
+
+.nav-button-inner {
+    display: flex;
+    align-items: center;
+    padding: 0.45rem 0.75rem;
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    font-weight: 500;
+    transition: background 0.12s, color 0.12s;
+    cursor: pointer;
+    gap: 0.5rem;
+}
+
+.nav-button-inner:hover {
+    background: var(--bg-hover) !important;
+    color: var(--text-primary) !important;
+    transform: none !important;
+}
+
+.nav-button-inner.nav-active {
+    background: var(--bg-active) !important;
+    color: var(--text-link) !important;
+    border-left: 2px solid var(--accent) !important;
+    padding-left: calc(0.75rem - 2px) !important;
+    font-weight: 600;
+}
+
+.nav-button-inner.text-danger {
+    color: var(--danger) !important;
+}
+
+.nav-button-inner.text-danger:hover {
+    background: rgba(248, 81, 73, 0.08) !important;
+    color: var(--danger) !important;
+}
+
+/* ── Content Area ─────────────────────────────────────────────────── */
+.content-area {
+    background: var(--bg-base) !important;
+    border-radius: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    padding: 1.25rem !important;
+}
+
+.content-area::before {
+    display: none !important;
+}
+
+.section-title {
+    color: var(--text-primary) !important;
+    font-size: 1.1rem !important;
+    font-weight: 600 !important;
+    background: none !important;
+    -webkit-background-clip: unset !important;
+    -webkit-text-fill-color: var(--text-primary) !important;
+    background-clip: unset !important;
+    margin-bottom: 0.25rem;
+}
+
+.section-description {
+    color: var(--text-secondary) !important;
+    font-size: 0.82rem !important;
+}
+
+/* ── Cards ────────────────────────────────────────────────────────── */
+.card {
+    background: var(--bg-surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius-lg) !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    transition: border-color 0.12s !important;
+}
+
+/* Remove shimmer pseudo-element */
+.card::before {
+    display: none !important;
+}
+
+.card:hover {
+    transform: none !important;
+    border-color: #444c56 !important;
+    box-shadow: none !important;
+}
+
+.card-header {
+    background: var(--bg-elevated) !important;
+    border-bottom: 1px solid var(--border) !important;
+    color: var(--text-primary) !important;
+    font-size: 0.82rem !important;
+    font-weight: 600 !important;
+    padding: 0.6rem 1rem !important;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.card-body {
+    background: transparent !important;
+    color: var(--text-primary) !important;
+    padding: 1rem !important;
+}
+
+/* ── Buttons ──────────────────────────────────────────────────────── */
+.btn,
+.btn-modern {
+    border-radius: var(--radius-md) !important;
+    font-size: 0.82rem !important;
+    font-weight: 500 !important;
+    padding: 0.4rem 0.9rem !important;
+    transition: background 0.12s, border-color 0.12s, opacity 0.12s !important;
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+    border: 1px solid transparent !important;
+    box-shadow: none !important;
+}
+
+.btn::before {
+    display: none !important;
+}
+
+.btn:hover {
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.btn-primary {
+    background: var(--accent) !important;
+    border-color: var(--accent) !important;
+    color: #fff !important;
+}
+
+.btn-primary:hover {
+    background: var(--accent-hover) !important;
+    border-color: var(--accent-hover) !important;
+}
+
+.btn-success {
+    background: var(--success) !important;
+    border-color: var(--success) !important;
+    color: #fff !important;
+}
+
+.btn-success:hover {
+    opacity: 0.85 !important;
+}
+
+.btn-danger {
+    background: var(--danger) !important;
+    border-color: var(--danger) !important;
+    color: #fff !important;
+}
+
+.btn-danger:hover {
+    opacity: 0.85 !important;
+}
+
+.btn-outline-primary {
+    background: transparent !important;
+    border-color: var(--border-accent) !important;
+    color: var(--text-link) !important;
+}
+
+.btn-outline-primary:hover {
+    background: rgba(56, 139, 253, 0.1) !important;
+}
+
+.btn-secondary {
+    background: var(--bg-elevated) !important;
+    border-color: var(--border) !important;
+    color: var(--text-primary) !important;
+}
+
+.btn-secondary:hover {
+    background: var(--bg-hover) !important;
+}
+
+/* ── Forms ────────────────────────────────────────────────────────── */
+.form-label,
+.form-label-modern {
+    color: var(--text-secondary) !important;
+    font-size: 0.78rem !important;
+    font-weight: 500 !important;
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+    margin-bottom: 0.3rem !important;
+}
+
+.form-control,
+.form-control-modern,
+.form-select,
+input[type="number"],
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea {
+    background: var(--bg-elevated) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius-md) !important;
+    color: var(--text-primary) !important;
+    font-size: 0.82rem !important;
+    padding: 0.4rem 0.65rem !important;
+    transition: border-color 0.12s !important;
+    box-shadow: none !important;
+}
+
+.form-control:focus,
+.form-control-modern:focus,
+.form-select:focus,
+input[type="number"]:focus,
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+textarea:focus {
+    background: var(--bg-elevated) !important;
+    border-color: var(--border-accent) !important;
+    box-shadow: 0 0 0 2px rgba(56, 139, 253, 0.2) !important;
+    color: var(--text-primary) !important;
+    transform: none !important;
+    outline: none !important;
+}
+
+.form-control::placeholder,
+.form-control-modern::placeholder,
+input::placeholder,
+textarea::placeholder {
+    color: var(--text-muted) !important;
+}
+
+/* Checkboxes / radio */
+.form-check-input {
+    background-color: var(--bg-elevated) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 3px !important;
+}
+
+.form-check-input:checked {
+    background-color: var(--accent) !important;
+    border-color: var(--accent) !important;
+    box-shadow: none !important;
+}
+
+/* Switch */
+.form-switch .form-check-input {
+    border-radius: 10px !important;
+}
+
+/* ── Metric Cards ─────────────────────────────────────────────────── */
+.metric-card {
+    background: var(--bg-surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius-lg) !important;
+    box-shadow: none !important;
+    animation: none !important;
+    transition: border-color 0.12s !important;
+}
+
+.metric-card::after {
+    display: none !important;
+}
+
+.metric-card:hover {
+    transform: none !important;
+    border-color: #444c56 !important;
+    box-shadow: none !important;
+}
+
+.metric-value {
+    font-size: 1.6rem !important;
+    font-weight: 700 !important;
+    color: var(--text-primary) !important;
+    background: none !important;
+    -webkit-background-clip: unset !important;
+    -webkit-text-fill-color: var(--text-primary) !important;
+    background-clip: unset !important;
+    animation: none !important;
+    filter: none !important;
+}
+
+.metric-label {
+    color: var(--text-secondary) !important;
+    font-size: 0.75rem !important;
+    font-weight: 400 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.4px !important;
+}
+
+/* ── Status Bar ───────────────────────────────────────────────────── */
+.status-bar {
+    background: var(--bg-surface) !important;
+    border-top: 1px solid var(--border) !important;
+    color: var(--text-secondary) !important;
+    font-size: 0.75rem !important;
+    padding: 0.3rem 1rem !important;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+}
+
+.progress-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    min-width: 200px;
+}
+
+.progress {
+    background: var(--bg-elevated) !important;
+    border-radius: 2px !important;
+    height: 3px !important;
+}
+
+.progress-bar {
+    background: var(--accent) !important;
+    box-shadow: none !important;
+}
+
+/* ── Variable / Objective / Constraint Rows ───────────────────────── */
+.variable-row,
+.objective-row,
+.constraint-row {
+    background: var(--bg-surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius-lg) !important;
+    padding: 0.75rem !important;
+    margin-bottom: 0.5rem !important;
+    transition: border-color 0.12s !important;
+}
+
+.variable-row::before,
+.objective-row::before,
+.constraint-row::before {
+    display: none !important;
+}
+
+.variable-row:hover,
+.objective-row:hover,
+.constraint-row:hover {
+    background: var(--bg-surface) !important;
+    border-color: #444c56 !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* ── Tables ───────────────────────────────────────────────────────── */
+.dash-table-container {
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius-lg) !important;
+    overflow: hidden;
+    box-shadow: none !important;
+}
+
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner th {
+    background: var(--bg-elevated) !important;
+    color: var(--text-secondary) !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.4px !important;
+    padding: 0.5rem 0.75rem !important;
+    border-bottom: 1px solid var(--border) !important;
+}
+
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner td {
+    background: var(--bg-surface) !important;
+    color: var(--text-primary) !important;
+    border-bottom: 1px solid var(--border-subtle) !important;
+    font-size: 0.82rem !important;
+    padding: 0.4rem 0.75rem !important;
+}
+
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner tr:hover td {
+    background: var(--bg-hover) !important;
+}
+
+/* ── Alerts ───────────────────────────────────────────────────────── */
+.alert {
+    border-radius: var(--radius-md) !important;
+    font-size: 0.82rem !important;
+    font-weight: 400 !important;
+    padding: 0.6rem 0.9rem !important;
+    backdrop-filter: none !important;
+}
+
+.alert-success {
+    background: rgba(63, 185, 80, 0.1) !important;
+    color: #3fb950 !important;
+    border-color: rgba(63, 185, 80, 0.3) !important;
+    box-shadow: none !important;
+}
+
+.alert-danger {
+    background: rgba(248, 81, 73, 0.1) !important;
+    color: #f85149 !important;
+    border-color: rgba(248, 81, 73, 0.3) !important;
+    box-shadow: none !important;
+}
+
+.alert-warning {
+    background: rgba(210, 153, 34, 0.1) !important;
+    color: #d29922 !important;
+    border-color: rgba(210, 153, 34, 0.3) !important;
+    box-shadow: none !important;
+}
+
+.alert-info {
+    background: rgba(56, 139, 253, 0.1) !important;
+    color: #58a6ff !important;
+    border-color: rgba(56, 139, 253, 0.3) !important;
+    box-shadow: none !important;
+}
+
+/* ── Badges ───────────────────────────────────────────────────────── */
+.badge {
+    font-size: 0.7rem !important;
+    font-weight: 500 !important;
+    padding: 0.2rem 0.5rem !important;
+    border-radius: 20px !important;
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+}
+
+/* ── List Groups ──────────────────────────────────────────────────── */
+.list-group-item {
+    background: var(--bg-surface) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text-primary) !important;
+    border-radius: var(--radius-md) !important;
+    margin-bottom: 2px !important;
+    font-size: 0.82rem !important;
+    transition: background 0.1s !important;
+}
+
+.list-group-item:hover {
+    background: var(--bg-hover) !important;
+    border-color: var(--border) !important;
+    transform: none !important;
+}
+
+/* ── Login Page ───────────────────────────────────────────────────── */
+.login-page {
+    min-height: 100vh;
+    background: var(--bg-base) !important;
+    position: relative;
+}
+
+.login-background {
+    display: none !important;
+}
+
+.login-card {
+    background: var(--bg-surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius-lg) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+    backdrop-filter: none !important;
+}
+
+.login-card::before {
+    display: none !important;
+}
+
+.login-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 10;
+    padding: 2rem 0;
+}
+
+/* ── Equation / Code Areas ────────────────────────────────────────── */
+textarea[id*="obj-expression"],
+textarea[id*="constraint-expression"] {
+    font-family: var(--font-mono) !important;
+    font-size: 0.82rem !important;
+    line-height: 1.5 !important;
+}
+
+.equation-display {
+    margin-top: 0.4rem;
+}
+
+/* ── Upload Area ──────────────────────────────────────────────────── */
+.dash-upload:hover {
+    border-color: var(--border-accent) !important;
+    background: rgba(56, 139, 253, 0.05) !important;
+}
+
+/* ── Fade-in (subtle, no bounce) ─────────────────────────────────── */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.2s ease;
+}
+
+/* ── Hide Dash debug toolbar ──────────────────────────────────────── */
+._dash-debug-menu,
+._dash-debug-menu__outer,
+.dash-debug-menu,
+.dash-debug-menu__outer,
+[class*="debug-menu"],
+[class*="Debug-menu"] {
+    display: none !important;
+}
+
+/* ── Responsive ───────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .sidebar {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+    }
+}

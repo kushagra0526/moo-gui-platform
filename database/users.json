@@ -1,0 +1,24 @@
+{
+  "admin@example.com": {
+    "full_name": "Administrator",
+    "email": "admin@example.com",
+    "password_hash": "fb38c13446d267d7569c091cd7175e9c4c8f638e10d4be09c78d66e411104c8e",
+    "salt": "906f70f6b372f409f2b763f91de67201f7b58d27796df4b32de0a2c49ee5d78a",
+    "created_at": "2026-09-01T01:40:44.678357",
+    "last_login": null,
+    "login_attempts": 0,
+    "account_locked": false,
+    "locked_until": null
+  },
+  "test@test.com": {
+    "full_name": "Test User",
+    "email": "test@test.com",
+    "password_hash": "3dbcafbae59a20e9d6f591cb41f505226c860ef2f4bda71702f878ba9ec02363",
+    "salt": "f559dcb6b4c351b96554ffe08d49834de4e7251b957e0aa92df7bd86e1d59387",
+    "created_at": "2026-09-01T01:40:44.694235",
+    "last_login": null,
+    "login_attempts": 0,
+    "account_locked": false,
+    "locked_until": null
+  }
+}
