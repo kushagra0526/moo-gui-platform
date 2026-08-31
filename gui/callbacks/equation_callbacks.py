@@ -106,25 +106,37 @@ def register_equation_callbacks(app):
     def update_rendered_equation(expressions):
         rendered = []
         for i, expr in enumerate(expressions):
-            if not expr:
-                expr = "x[0]**2 + x[1]**2"
-            html_expr = convert_to_html(expr, i)
-            rendered.append(
-                html.Div(
-                    html_expr,
-                    style={
-                        "padding": "1.5rem",
-                        "background": "white",
-                        "border": "2px solid rgba(0, 212, 255, 0.3)",
-                        "borderRadius": "12px",
-                        "fontSize": "1.4rem",
-                        "textAlign": "center",
-                        "color": "#1e293b",
-                        "fontWeight": "500",
-                        "fontFamily": "Georgia, serif"
-                    }
+            if not expr or not str(expr).strip():
+                rendered.append(
+                    html.Div(
+                        f"Enter objective f{i}(x) expression above (e.g., x[0]**2 + x[1]**2)",
+                        className="text-muted fst-italic py-3 text-center",
+                        style={
+                            "background": "rgba(255, 255, 255, 0.03)",
+                            "borderRadius": "10px",
+                            "border": "1px dashed rgba(255, 255, 255, 0.15)",
+                            "fontSize": "0.95rem"
+                        }
+                    )
                 )
-            )
+            else:
+                html_expr = convert_to_html(str(expr).strip(), i)
+                rendered.append(
+                    html.Div(
+                        html_expr,
+                        style={
+                            "padding": "1.2rem",
+                            "background": "white",
+                            "border": "2px solid rgba(0, 212, 255, 0.3)",
+                            "borderRadius": "12px",
+                            "fontSize": "1.3rem",
+                            "textAlign": "center",
+                            "color": "#1e293b",
+                            "fontWeight": "500",
+                            "fontFamily": "Georgia, serif"
+                        }
+                    )
+                )
         return rendered
 
 

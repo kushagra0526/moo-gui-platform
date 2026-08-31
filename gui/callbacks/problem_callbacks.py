@@ -174,6 +174,11 @@ def register_problem_callbacks(app):
     def validate_problem_definition(var_names, var_types, var_lowers, var_uppers,
                                   obj_names, obj_expressions, constraint_expressions):
         """Validate the current problem definition."""
+        # If all objective expressions are empty, show info prompt
+        non_empty_objs = [e for e in (obj_expressions or []) if e and e.strip()]
+        if len(non_empty_objs) == 0:
+            return "Enter your decision variables and objective formulas to define the optimization problem.", "info"
+
         issues = []
         
         # Validate variables
@@ -189,12 +194,12 @@ def register_problem_callbacks(app):
                 issues.append(f"Variable {name}: lower bound must be less than upper bound.")
         
         # Validate objectives
-        if not obj_expressions or len(obj_expressions) < 2:
-            issues.append("At least two objectives are required.")
+        if len(non_empty_objs) < 2:
+            issues.append("At least two objective formulas are required for multi-objective optimization.")
         
         for i, expr in enumerate(obj_expressions or []):
             if not expr or not expr.strip():
-                issues.append(f"Objective {i}: expression is required.")
+                issues.append(f"Objective {i}: expression cannot be empty.")
         
         # Validate constraints
         for i, expr in enumerate(constraint_expressions or []):
@@ -202,11 +207,11 @@ def register_problem_callbacks(app):
                 issues.append(f"Constraint {i}: expression cannot be empty.")
         
         if issues:
-            return " ".join(issues), "danger"
+            return " ".join(issues), "warning"
         else:
-            return "Problem definition is valid.", "success"
+            return "Problem definition is valid. Ready to run optimization.", "success"
 
-    # ── NEW: Save problem definition to app-state ────────────────────
+    # ── Save problem definition to app-state ────────────────────
     @app.callback(
         Output("app-state", "data", allow_duplicate=True),
         [Input({"type": "var-name",  "index": ALL}, "value"),
@@ -226,19 +231,21 @@ def register_problem_callbacks(app):
                               constraint_names, constraint_expressions,
                               current_state):
         """Save problem definition to app-state so optimization can read it."""
-        # Only save if we actually have problem data
-        if not var_names and not obj_expressions:
-            return no_update
+        # Only save if we actually have non-empty problem data
+        has_data = any(e and e.strip() for e in (obj_expressions or []))
         state = current_state.copy() if current_state else {}
-        state.update({
-            "var_names":               var_names,
-            "var_types":               var_types,
-            "var_lowers":              var_lowers,
-            "var_uppers":              var_uppers,
-            "obj_names":               obj_names,
-            "obj_directions":          obj_directions,
-            "obj_expressions":         obj_expressions,
-            "constraint_names":        constraint_names,
-            "constraint_expressions":  constraint_expressions,
-        })
+        if has_data:
+            state.update({
+                "var_names":               var_names,
+                "var_types":               var_types,
+                "var_lowers":              var_lowers,
+                "var_uppers":              var_uppers,
+                "obj_names":               obj_names,
+                "obj_directions":          obj_directions,
+                "obj_expressions":         obj_expressions,
+                "constraint_names":        constraint_names,
+                "constraint_expressions":  constraint_expressions,
+            })
+        else:
+            state.pop("obj_expressions", None)
         return state

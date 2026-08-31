@@ -17,7 +17,7 @@ def create_problem_definition_layout(saved_state=None):
     obj_dirs   = saved.get("obj_directions", [])
     obj_exprs  = saved.get("obj_expressions", [])
 
-    # Build variable rows from saved state, or default 1 row
+    # Build variable rows from saved state, or default 2 rows (x0, x1)
     if var_names and len(var_names) > 0:
         variable_rows = [
             create_variable_row(
@@ -30,9 +30,9 @@ def create_problem_definition_layout(saved_state=None):
             for i in range(len(var_names))
         ]
     else:
-        variable_rows = [create_variable_row(0)]
+        variable_rows = [create_variable_row(0), create_variable_row(1)]
 
-    # Build objective rows from saved state, or default 2 rows
+    # Build objective rows from saved state, or default 2 empty rows
     if obj_exprs and len(obj_exprs) >= 2:
         objective_rows = [
             create_objective_row(
@@ -44,7 +44,7 @@ def create_problem_definition_layout(saved_state=None):
             for i in range(len(obj_exprs))
         ]
     else:
-        objective_rows = [create_objective_row(0), create_objective_row(1)]
+        objective_rows = [create_objective_row(0, expression=""), create_objective_row(1, expression="")]
     return dbc.Container([
         # Version indicator (hidden)
         html.Div("v2.0-enhanced", id="layout-version", style={"display": "none"}),
@@ -151,8 +151,8 @@ def create_problem_definition_layout(saved_state=None):
             dbc.Col([
                 dbc.Alert(
                     id="problem-validation",
-                    children="Problem definition is valid.",
-                    color="success",
+                    children="Enter your decision variables and objective formulas to define the optimization problem.",
+                    color="info",
                     dismissable=False,
                     className="mb-0"
                 )
@@ -220,12 +220,37 @@ def create_variable_row(index, name=None, vtype="continuous", lower=0, upper=1):
 
 def create_objective_row(index, name=None, direction="minimize", expression=None):
     """Create a single objective definition row with equation rendering and image upload."""
-    default_exprs = [
-        "x[0]**2 + x[1]**2",
-        "(x[0]-1)**2 + (x[1]-1)**2",
-    ]
-    expr_value = expression if expression is not None else (default_exprs[index] if index < len(default_exprs) else "")
+    expr_value = expression if expression is not None else ""
     name_value = name if name is not None else f"objective_{index}"
+
+    if expr_value.strip():
+        from ..callbacks.equation_callbacks import convert_to_html
+        preview_child = html.Div(
+            convert_to_html(expr_value, index),
+            style={
+                "padding": "1.2rem",
+                "background": "white",
+                "border": "2px solid rgba(0, 212, 255, 0.3)",
+                "borderRadius": "12px",
+                "fontSize": "1.3rem",
+                "textAlign": "center",
+                "color": "#1e293b",
+                "fontWeight": "500",
+                "fontFamily": "Georgia, serif"
+            }
+        )
+    else:
+        preview_child = html.Div(
+            f"Enter objective f{index}(x) expression above (e.g., x[0]**2 + x[1]**2)",
+            className="text-muted fst-italic py-3 text-center",
+            style={
+                "background": "rgba(255, 255, 255, 0.03)",
+                "borderRadius": "10px",
+                "border": "1px dashed rgba(255, 255, 255, 0.15)",
+                "fontSize": "0.95rem"
+            }
+        )
+
     return html.Div([
         dbc.Row([
             dbc.Col([
@@ -315,49 +340,7 @@ def create_objective_row(index, name=None, direction="minimize", expression=None
                     html.Div(
                         id={"type": "obj-rendered", "index": index},
                         className="equation-display",
-                        children=[
-                            html.Div(
-                                [
-                                    html.Span("f", style={"fontStyle": "italic"}),
-                                    html.Sub(str(index)),
-                                    html.Span("(x) = ", style={"fontStyle": "italic"}),
-                                    html.Span("x", style={"fontStyle": "italic"}),
-                                    html.Sub("0"),
-                                    html.Sup("2"),
-                                    html.Span(" + "),
-                                    html.Span("x", style={"fontStyle": "italic"}),
-                                    html.Sub("1"),
-                                    html.Sup("2")
-                                ] if index == 0 else [
-                                    html.Span("f", style={"fontStyle": "italic"}),
-                                    html.Sub(str(index)),
-                                    html.Span("(x) = ", style={"fontStyle": "italic"}),
-                                    html.Span("("),
-                                    html.Span("x", style={"fontStyle": "italic"}),
-                                    html.Sub("0"),
-                                    html.Span(" - 1)"),
-                                    html.Sup("2"),
-                                    html.Span(" + "),
-                                    html.Span("("),
-                                    html.Span("x", style={"fontStyle": "italic"}),
-                                    html.Sub("1"),
-                                    html.Span(" - 1)"),
-                                    html.Sup("2")
-                                ],
-                                style={
-                                    "padding": "1.5rem",
-                                    "background": "white",
-                                    "border": "2px solid rgba(0, 212, 255, 0.3)",
-                                    "borderRadius": "12px",
-                                    "fontSize": "1.4rem",
-                                    "textAlign": "center",
-                                    "color": "#1e293b",
-                                    "fontWeight": "500",
-                                    "boxShadow": "0 4px 12px rgba(0, 0, 0, 0.1)",
-                                    "fontFamily": "Georgia, serif"
-                                }
-                            )
-                        ]
+                        children=[preview_child]
                     )
                 ])
             ], width=12)

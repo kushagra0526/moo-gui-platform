@@ -59,6 +59,13 @@ def register_optimization_callbacks(app):
             if algo_config:
                 merged.update(algo_config)
 
+            # Require at least 2 valid objectives for static/many optimization
+            obj_exprs = merged.get("obj_expressions") or []
+            valid_objs = [e for e in obj_exprs if e and str(e).strip()]
+            if len(valid_objs) < 2 and merged.get("problem_type") != "dynamic":
+                print("[OPT] No objectives defined yet — remaining idle")
+                return False, True, True, {"cmd": "idle"}
+
             merged.update({
                 "optimization_running":   True,
                 "optimization_completed": False,

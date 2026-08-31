@@ -156,7 +156,7 @@ def create_main_layout(user_data=None, pathname="/dashboard", engine_running=Fal
         ], fluid=True),
         # Status bar
         html.Div([
-            html.Span(id="status-text", children="Ready"),
+            html.Span(id="status-text", children="Idle — Ready"),
             html.Div(
                 dbc.Progress(id="progress-bar", value=0, style={"height": "4px"}),
                 className="progress-container",

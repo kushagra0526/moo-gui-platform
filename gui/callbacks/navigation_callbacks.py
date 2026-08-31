@@ -27,6 +27,8 @@ def register_navigation_callbacks(app):
         if app.optimization_engine.is_running:
             # Engine actually running — don't touch anything
             return no_update, no_update, no_update, no_update
+        if pathname in ("/logout", "/login", "/"):
+            return {}, True, False, True
         # Engine not running — clear any stale running flags and re-enable Run
         if app_state and app_state.get("optimization_running"):
             state = app_state.copy()
@@ -65,13 +67,13 @@ def register_navigation_callbacks(app):
 
         # Default: reflect optimization state
         if not app_state:
-            return "Ready"
+            return "Idle — Ready"
         if app_state.get("optimization_running"):
             gen = app_state.get("current_generation", 0)
             return f"Running optimization… Generation {gen}"
         if app_state.get("optimization_completed"):
             return "Optimization completed"
-        return "Ready"
+        return "Idle — Ready"
 
     # ------------------------------------------------------------------
     # progress-bar — sole writer
