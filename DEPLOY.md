@@ -15,9 +15,9 @@ python main.py
 Open `http://localhost:8080` in your browser.
 
 Default login credentials pre-configured:
-- **Admin**: `admin@example.com` / `AdminPassword123!`
-- **User**: `test@test.com` / `TestPassword123!`
-- *Or click "Register" to create a new user account directly.*
+- **Email**: `test@test.com`
+- **Password**: `TestPassword123!`
+- *(Or click "Register" to create a new user account directly)*
 
 ---
 
