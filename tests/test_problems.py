@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""
-Test Problems for the Multi-Objective Optimization GUI
-Validates problem definitions and provides standard test cases.
-"""
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import unittest
 import numpy as np
@@ -20,7 +19,6 @@ class TestProblemDefinitions(unittest.TestCase):
         self.state_manager = StateManager()
 
     def test_basic_biobjective(self):
-        """Test basic bi-objective problem."""
         variables = [
             Variable("x1", "continuous", 0.0, 1.0),
             Variable("x2", "continuous", 0.0, 1.0),
@@ -33,7 +31,6 @@ class TestProblemDefinitions(unittest.TestCase):
         issues = self.state_manager.validate_problem_definition(problem_def)
         self.assertEqual(len(issues), 0, f"Validation issues: {issues}")
 
-        # Test evaluation
         prob = GenericProblem(
             n_var=2,
             n_obj=2,
@@ -50,7 +47,6 @@ class TestProblemDefinitions(unittest.TestCase):
         self.assertAlmostEqual(out["F"][0, 1], 0.5)
 
     def test_zdt1_benchmark(self):
-        """Test ZDT1 benchmark problem."""
         variables = [Variable(f"x{i}", "continuous", 0.0, 1.0) for i in range(5)]
         objectives = [
             Objective("f1", "minimize", "x[0]"),
@@ -61,7 +57,6 @@ class TestProblemDefinitions(unittest.TestCase):
         self.assertEqual(len(issues), 0)
 
     def test_constrained_problem(self):
-        """Test constrained problem."""
         variables = [
             Variable("x1", "continuous", -5.0, 5.0),
             Variable("x2", "continuous", -5.0, 5.0),
@@ -78,7 +73,6 @@ class TestProblemDefinitions(unittest.TestCase):
         self.assertEqual(len(issues), 0)
 
     def test_engineering_problems(self):
-        """Test engineering problem templates."""
         wb = EngineeringProblems.welded_beam_design()
         self.assertEqual(len(wb["variables"]), 4)
         self.assertEqual(len(wb["objectives"]), 2)
@@ -90,7 +84,6 @@ class TestProblemDefinitions(unittest.TestCase):
         self.assertEqual(len(pv["constraints"]), 4)
 
     def test_many_objective_dtlz2(self):
-        """Test many-objective DTLZ2 formulation."""
         variables = [Variable(f"x{i}", "continuous", 0.0, 1.0) for i in range(6)]
         objectives = [
             Objective("f1", "minimize", "(1 + sum((x[3:] - 0.5)**2)) * cos(x[0]*pi/2) * cos(x[1]*pi/2) * cos(x[2]*pi/2)"),
@@ -103,23 +96,5 @@ class TestProblemDefinitions(unittest.TestCase):
         self.assertEqual(len(issues), 0)
 
 
-def print_reference_problems():
-    """Print problem definitions reference sheet for manual GUI testing."""
-    print("TEST PROBLEMS REFERENCE SHEET FOR MOO GUI")
-    print("=" * 50)
-    print("\n1. BASIC BI-OBJECTIVE PROBLEM")
-    print("  f1: x[0]**2 + x[1]**2")
-    print("  f2: (x[0]-1)**2 + (x[1]-1)**2")
-    print("\n2. ZDT1 BENCHMARK PROBLEM")
-    print("  f1: x[0]")
-    print("  f2: (1 + 9*sum(x[1:])/4) * (1 - sqrt(x[0]/(1 + 9*sum(x[1:])/4)))")
-    print("\n3. CONSTRAINED PROBLEM")
-    print("  f1: x[0]**2 + x[1]**2")
-    print("  f2: (x[0]-2)**2 + (x[1]-1)**2")
-    print("  g1 (<= 0): x[0]**2 + x[1]**2 - 1")
-    print("=" * 50)
-
-
 if __name__ == "__main__":
-    print_reference_problems()
     unittest.main()

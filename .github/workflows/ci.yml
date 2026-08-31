@@ -1,4 +1,4 @@
-name: Continuous Integration
+name: CI
 
 on:
   push:
@@ -28,8 +28,10 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Run Tests
+    - name: Run Unit Tests
       run: |
-        python test_installation.py
-        python test_cec2018.py
-        python test_gui_complete.py
+        python -m unittest discover tests
+
+    - name: Run Core Example
+      run: |
+        python examples/basic_example.py
