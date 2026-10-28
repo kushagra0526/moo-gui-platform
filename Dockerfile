@@ -35,5 +35,5 @@ EXPOSE 8080
 RUN useradd -m appuser
 USER appuser
 
-# Entry point
-CMD ["python", "main.py"]
+# Entry point — one worker: the running optimization lives in that process's memory
+CMD ["gunicorn", "--workers=1", "--threads=4", "--timeout=120", "--bind=0.0.0.0:8080", "main:server"]

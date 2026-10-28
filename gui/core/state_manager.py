@@ -2,8 +2,6 @@
 State management for the MOO GUI application
 """
 
-import json
-import yaml
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, asdict
 from datetime import datetime
@@ -68,7 +66,6 @@ class StateManager:
     
     def __init__(self):
         self.current_experiment: Optional[ExperimentState] = None
-        self.experiments_history: List[ExperimentState] = []
         
     def create_new_experiment(self, name: str, description: str = "") -> ExperimentState:
         """Create a new experiment with default settings."""
@@ -130,69 +127,6 @@ class StateManager:
         if self.current_experiment:
             self.current_experiment.algorithm = algorithm
             self.current_experiment.modified_at = datetime.now().isoformat()
-    
-    def save_experiment(self, filepath: str):
-        """Save the current experiment to file."""
-        if not self.current_experiment:
-            raise ValueError("No current experiment to save")
-        
-        experiment_dict = asdict(self.current_experiment)
-        
-        if filepath.endswith('.json'):
-            with open(filepath, 'w') as f:
-                json.dump(experiment_dict, f, indent=2)
-        elif filepath.endswith('.yaml') or filepath.endswith('.yml'):
-            with open(filepath, 'w') as f:
-                yaml.dump(experiment_dict, f, default_flow_style=False)
-        else:
-            raise ValueError("Unsupported file format. Use .json or .yaml")
-    
-    def load_experiment(self, filepath: str) -> ExperimentState:
-        """Load an experiment from file."""
-        if filepath.endswith('.json'):
-            with open(filepath, 'r') as f:
-                experiment_dict = json.load(f)
-        elif filepath.endswith('.yaml') or filepath.endswith('.yml'):
-            with open(filepath, 'r') as f:
-                experiment_dict = yaml.safe_load(f)
-        else:
-            raise ValueError("Unsupported file format. Use .json or .yaml")
-        
-        # Reconstruct dataclass objects
-        experiment = self._dict_to_experiment(experiment_dict)
-        self.current_experiment = experiment
-        
-        # Add to history if not already present
-        if experiment not in self.experiments_history:
-            self.experiments_history.append(experiment)
-        
-        return experiment
-    
-    def _dict_to_experiment(self, data: Dict[str, Any]) -> ExperimentState:
-        """Convert dictionary to ExperimentState object."""
-        # Reconstruct nested objects
-        variables = [Variable(**var) for var in data['problem']['variables']]
-        objectives = [Objective(**obj) for obj in data['problem']['objectives']]
-        constraints = [Constraint(**con) for con in data['problem']['constraints']]
-        
-        problem = ProblemDefinition(
-            variables=variables,
-            objectives=objectives,
-            constraints=constraints,
-            problem_type=data['problem']['problem_type']
-        )
-        
-        algorithm = AlgorithmConfig(**data['algorithm'])
-        
-        return ExperimentState(
-            name=data['name'],
-            description=data['description'],
-            problem=problem,
-            algorithm=algorithm,
-            created_at=data['created_at'],
-            modified_at=data['modified_at'],
-            results=data.get('results')
-        )
     
     def validate_problem_definition(self, problem: ProblemDefinition) -> List[str]:
         """Validate problem definition and return list of issues."""

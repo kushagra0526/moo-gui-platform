@@ -39,7 +39,7 @@ def build_login_card():
           ], style={"display": "flex", "alignItems": "center",
                     "marginBottom": "0.65rem"})
           for ic, tx in [
-            ("fas fa-dna",         "NSGA-II / NSGA-III algorithms"),
+            ("fas fa-dna",         "NSGA-II optimization"),
             ("fas fa-chart-line",  "Real-time Pareto visualization"),
             ("fas fa-sliders-h",   "Configurable problem definitions"),
             ("fas fa-file-export", "Export results & generate code"),

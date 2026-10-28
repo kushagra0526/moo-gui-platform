@@ -3,7 +3,10 @@ Production-grade user management system
 """
 
 import hashlib
+import hmac
+import os
 import secrets
+import threading
 import json
 import re
 from pathlib import Path
@@ -13,6 +16,8 @@ from typing import Optional, Tuple, Dict, Any
 # User database path
 USER_DB_PATH = Path(__file__).parent.parent.parent / "database" / "users.json"
 USER_DB_PATH.parent.mkdir(exist_ok=True)
+PBKDF2_ITERATIONS = 200_000
+_db_lock = threading.Lock()  # serialises read-modify-write of users.json within this process
 
 class PasswordValidator:
     """Validate password strength."""
@@ -80,28 +85,29 @@ class UserManager:
             return {}
     
     def _save_db(self, data: Dict[str, Any]):
-        """Save user database."""
-        with open(self.db_path, 'w') as f:
+        """Save user database atomically, so a crash or concurrent read never sees a half-written file."""
+        tmp = self.db_path.with_suffix(".tmp")
+        with open(tmp, 'w') as f:
             json.dump(data, f, indent=2)
+        os.replace(tmp, self.db_path)
     
     def _hash_password(self, password: str, salt: str = None) -> Tuple[str, str]:
         """
-        Hash password with salt using SHA-256.
+        Hash password with salt using PBKDF2-HMAC-SHA256.
         Returns (hash, salt)
         """
         if salt is None:
             salt = secrets.token_hex(32)
-        
-        # Combine password and salt, then hash
-        pwd_salt = f"{password}{salt}".encode('utf-8')
-        pwd_hash = hashlib.sha256(pwd_salt).hexdigest()
-        
-        return pwd_hash, salt
+        pwd_hash = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt.encode('utf-8'), PBKDF2_ITERATIONS)
+        return pwd_hash.hex(), salt
     
-    def _verify_password(self, password: str, stored_hash: str, salt: str) -> bool:
-        """Verify password against stored hash."""
-        pwd_hash, _ = self._hash_password(password, salt)
-        return pwd_hash == stored_hash
+    def _verify_password(self, user: Dict[str, Any], password: str) -> bool:
+        """Verify password against the stored hash; accounts created before PBKDF2 use one SHA-256 round."""
+        if user.get("kdf") == "pbkdf2":
+            pwd_hash, _ = self._hash_password(password, user["salt"])
+        else:
+            pwd_hash = hashlib.sha256(f"{password}{user['salt']}".encode('utf-8')).hexdigest()
+        return hmac.compare_digest(pwd_hash, user["password_hash"])
     
     def register_user(self, email: str, full_name: str, password: str) -> Tuple[bool, str]:
         """
@@ -123,20 +129,23 @@ class UserManager:
         if not is_valid:
             return False, error
         
-        # Check if user already exists
+        # Hash outside the lock: it is deliberately slow
+        pwd_hash, salt = self._hash_password(password)
+
+        with _db_lock:
+            return self._add_user(email, full_name, pwd_hash, salt)
+
+    def _add_user(self, email: str, full_name: str, pwd_hash: str, salt: str) -> Tuple[bool, str]:
         db = self._load_db()
         if email in db:
             return False, "An account with this email already exists"
-        
-        # Hash password with salt
-        pwd_hash, salt = self._hash_password(password)
-        
-        # Create user record
+
         db[email] = {
             "full_name": full_name.strip(),
             "email": email,
             "password_hash": pwd_hash,
             "salt": salt,
+            "kdf": "pbkdf2",
             "created_at": datetime.now().isoformat(),
             "last_login": None,
             "login_attempts": 0,
@@ -153,6 +162,10 @@ class UserManager:
         Returns (success, message, user_data)
         """
         email = email.lower().strip()
+        with _db_lock:
+            return self._authenticate(email, password)
+
+    def _authenticate(self, email: str, password: str) -> Tuple[bool, str, Optional[Dict]]:
         db = self._load_db()
         
         # Check if user exists
@@ -176,7 +189,7 @@ class UserManager:
                     user["login_attempts"] = 0
         
         # Verify password
-        if not self._verify_password(password, user["password_hash"], user["salt"]):
+        if not self._verify_password(user, password):
             # Increment failed login attempts
             user["login_attempts"] = user.get("login_attempts", 0) + 1
             
@@ -191,7 +204,10 @@ class UserManager:
             remaining_attempts = 5 - user["login_attempts"]
             return False, f"Invalid email or password. {remaining_attempts} attempts remaining", None
         
-        # Successful login - reset attempts and update last login
+        # Successful login - upgrade a legacy hash, reset attempts and update last login
+        if user.get("kdf") != "pbkdf2":
+            user["password_hash"], user["salt"] = self._hash_password(password)
+            user["kdf"] = "pbkdf2"
         user["login_attempts"] = 0
         user["last_login"] = datetime.now().isoformat()
         user["account_locked"] = False
@@ -207,49 +223,3 @@ class UserManager:
         }
         
         return True, "Login successful", user_data
-    
-    def change_password(self, email: str, old_password: str, new_password: str) -> Tuple[bool, str]:
-        """
-        Change user password.
-        Returns (success, message)
-        """
-        email = email.lower().strip()
-        db = self._load_db()
-        
-        if email not in db:
-            return False, "User not found"
-        
-        user = db[email]
-        
-        # Verify old password
-        if not self._verify_password(old_password, user["password_hash"], user["salt"]):
-            return False, "Current password is incorrect"
-        
-        # Validate new password
-        is_valid, error = PasswordValidator.validate(new_password)
-        if not is_valid:
-            return False, error
-        
-        # Hash new password
-        pwd_hash, salt = self._hash_password(new_password)
-        user["password_hash"] = pwd_hash
-        user["salt"] = salt
-        
-        self._save_db(db)
-        return True, "Password changed successfully"
-    
-    def get_user_info(self, email: str) -> Optional[Dict]:
-        """Get user information (without sensitive data)."""
-        email = email.lower().strip()
-        db = self._load_db()
-        
-        if email not in db:
-            return None
-        
-        user = db[email]
-        return {
-            "email": user["email"],
-            "full_name": user["full_name"],
-            "created_at": user["created_at"],
-            "last_login": user.get("last_login")
-        }

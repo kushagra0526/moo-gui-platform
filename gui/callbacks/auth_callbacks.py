@@ -1,14 +1,16 @@
 """
 Auth callbacks — strictly ONE callback per output.
 
-auth-state.data  → handle_auth_state  (signin-button click only)
+auth-state.data  → handle_auth_state  (signin-button click; also sets the server session)
 url.pathname     → handle_url         (auth-state change → redirect)
-                   handle_quick_nav   (quick-action buttons → navigate)
-auth-alert       → handle_auth_alert  (signin, signup, forgot — read-only DB peek)
+auth-alert       → handle_auth_state  (signin result), handle_auth_alert (signup, forgot)
 signin/signup form toggle → toggle_tab
+
+The signed Flask session is what proves a login; auth-state only tells the browser to re-route.
 """
-from dash import Input, Output, State, html, callback_context, no_update
+from dash import Input, Output, State, callback_context, no_update
 import dash_bootstrap_components as dbc
+from flask import session
 from ..auth.user_manager import UserManager
 
 user_manager = UserManager()
@@ -17,38 +19,32 @@ user_manager = UserManager()
 def register_auth_callbacks(app):
 
     # ── 1. auth-state.data — SOLE writer ────────────────────────────
-    # Triggered ONLY by signin-button click or logout pathname.
+    # Triggered ONLY by signin-button click. Logout is handled by the router
+    # (listening to url here too would make a url → auth-state → url cycle).
     @app.callback(
         Output("auth-state", "data"),
+        Output("auth-alert", "children", allow_duplicate=True),
         Input("signin-button", "n_clicks"),
-        Input("url",           "pathname"),
         State("signin-email",    "value"),
         State("signin-password", "value"),
         State("signin-remember", "value"),
         prevent_initial_call=True,
     )
-    def handle_auth_state(n, pathname, email, password, remember):
-        ctx = callback_context
-        if not ctx.triggered:
-            return no_update
-        t = ctx.triggered[0]["prop_id"].split(".")[0]
-
-        # Clear auth on logout
-        if t == "url" and pathname == "/logout":
-            return {"authenticated": False, "user": None}
-
-        # Authenticate on button click
-        if t == "signin-button":
+    def handle_auth_state(n, email, password, remember):
+        if n:
             if not email or not password:
-                return no_update
-            ok, _msg, user_data = user_manager.authenticate_user(email, password)
-            if ok:
-                return {
-                    "authenticated": True,
-                    "user": user_data,
-                    "remember": bool(remember),
-                }
-        return no_update
+                return no_update, dbc.Alert("Please enter your email and password.",
+                                            color="warning", dismissable=True, duration=4000)
+            ok, msg, user_data = user_manager.authenticate_user(email, password)
+            if not ok:
+                return no_update, dbc.Alert(msg, color="danger", dismissable=True, duration=5000)
+            session["user"] = user_data
+            return (
+                {"authenticated": True, "user": user_data, "remember": bool(remember)},
+                dbc.Alert(f"Welcome back, {user_data['full_name']}!",
+                          color="success", dismissable=True, duration=3000),
+            )
+        return no_update, no_update
 
     # ── 2. url.pathname — SOLE writer (auth redirects only) ─────────
     # Watches auth-state changes only. Quick-action nav uses dcc.Link.
@@ -71,11 +67,8 @@ def register_auth_callbacks(app):
     # ── 3. auth-alert — SOLE writer ─────────────────────────────────
     @app.callback(
         Output("auth-alert", "children"),
-        Input("signin-button",        "n_clicks"),
         Input("signup-button",        "n_clicks"),
         Input("forgot-password-link", "n_clicks"),
-        State("signin-email",            "value"),
-        State("signin-password",         "value"),
         State("signup-fullname",         "value"),
         State("signup-email",            "value"),
         State("signup-password",         "value"),
@@ -83,8 +76,7 @@ def register_auth_callbacks(app):
         State("signup-terms",            "value"),
         prevent_initial_call=True,
     )
-    def handle_auth_alert(sc, supc, fc, s_email, s_pass,
-                          su_name, su_email, su_pass, su_confirm, su_terms):
+    def handle_auth_alert(supc, fc, su_name, su_email, su_pass, su_confirm, su_terms):
         ctx = callback_context
         if not ctx.triggered:
             return no_update
@@ -113,31 +105,6 @@ def register_auth_callbacks(app):
                 dismissable=True, duration=5000,
             )
 
-        if t == "signin-button":
-            if not s_email or not s_pass:
-                return dbc.Alert("Please enter your email and password.",
-                                 color="warning", dismissable=True, duration=4000)
-            # Read-only DB peek — no attempt counter side effects
-            db = user_manager._load_db()
-            em = s_email.lower().strip()
-            if em not in db:
-                return dbc.Alert("Invalid email or password.", color="danger",
-                                 dismissable=True, duration=5000)
-            u = db[em]
-            if u.get("account_locked"):
-                return dbc.Alert("Account locked. Try again later.", color="danger",
-                                 dismissable=True, duration=5000)
-            h, _ = user_manager._hash_password(s_pass, u["salt"])
-            if h != u["password_hash"]:
-                rem = max(0, 4 - u.get("login_attempts", 0))
-                return dbc.Alert(
-                    f"Invalid email or password. {rem} attempts remaining.",
-                    color="danger", dismissable=True, duration=5000,
-                )
-            return dbc.Alert(
-                f"Welcome back, {u['full_name']}!",
-                color="success", dismissable=True, duration=3000,
-            )
         return no_update
 
     # ── 4. Tab toggle ────────────────────────────────────────────────

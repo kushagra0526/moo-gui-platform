@@ -1,18 +1,23 @@
 """
 Main Dash application.
-Login form always in DOM. Router toggles a single 'authenticated' class.
+Login form always in DOM. Router shows it or the app shell, based on the signed server session.
 """
 import dash
-from dash import dcc, html, Input, Output, State, no_update
+from dash import dcc, html, Input, Output, State
 import dash_bootstrap_components as dbc
 import os
+import secrets
+from flask import request, session
 
 from .layouts import create_main_layout
 from .layouts.login_layout import build_login_card
 from .callbacks import register_callbacks
 from .callbacks.auth_callbacks import register_auth_callbacks
-from .core.state_manager import StateManager
 from .core.optimization_engine import OptimizationEngine
+
+# Callback outputs an anonymous visitor may update: the login form and the router (which checks the session itself)
+PUBLIC_OUTPUTS = ("auth-state.", "auth-alert.", "signin-form-div.", "signup-form-div.", "tab-btn-",
+                  "login-page-wrapper.", "app-shell.", "url.")
 
 
 def create_app():
@@ -27,8 +32,17 @@ def create_app():
         assets_folder=assets_path,
     )
 
-    app.state_manager       = StateManager()
+    # Signs the session cookie. Random per start (logs everyone out on restart) unless MOO_GUI_SECRET_KEY is set.
+    app.server.secret_key = os.environ.get("MOO_GUI_SECRET_KEY") or secrets.token_hex(32)
     app.optimization_engine = OptimizationEngine()
+
+    @app.server.before_request
+    def require_login():
+        """Answer app callbacks from visitors without a session with 204 (Dash's "no update")."""
+        if request.path.endswith("/_dash-update-component") and not session.get("user"):
+            outputs = (request.get_json(silent=True) or {}).get("output", "").strip(".").split("...")
+            if not all(o.startswith(PUBLIC_OUTPUTS) for o in outputs):
+                return "", 204
 
     app.layout = html.Div([
         dcc.Location(id="url", refresh=False),
@@ -40,6 +54,7 @@ def create_app():
                   data={"cmd": "idle"}),
         dcc.Store(id="algo-config",          storage_type="session"),
         dcc.Interval(id="optimization-interval", interval=2000, disabled=True),
+        dcc.Download(id="download"),
 
         # Login — always in DOM
         html.Div(build_login_card(), id="login-page-wrapper"),
@@ -54,28 +69,20 @@ def create_app():
         Input("auth-state", "data"),
         Input("url",        "pathname"),
         State("app-state",  "data"),
+        State("algo-config", "data"),
     )
-    def router(auth_state, pathname, app_state):
-        if isinstance(auth_state, str):
-            try:
-                import json as _j; auth_state = _j.loads(auth_state)
-            except Exception:
-                auth_state = None
-
-        authenticated = bool(
-            isinstance(auth_state, dict) and auth_state.get("authenticated") is True
-        )
+    def router(_auth_state, pathname, app_state, algo_config):
+        # auth-state is only a trigger; the browser can forge it, the signed session it cannot
+        if pathname == "/logout":
+            session.pop("user", None)
+        user_data = session.get("user")
 
         HIDE = {"display": "none"}
         SHOW = {"display": "block"}
 
-        if pathname == "/logout":
+        if not user_data:
             return SHOW, None
 
-        if not authenticated:
-            return SHOW, None
-
-        user_data = auth_state.get("user", {}) if isinstance(auth_state, dict) else {}
         valid_paths = ("/dashboard", "/problem", "/algorithm", "/visualization", "/results", "/cec2018")
         safe = pathname if pathname in valid_paths else "/dashboard"
 
@@ -84,6 +91,7 @@ def create_app():
             pathname=safe,
             engine_running=app.optimization_engine.is_running,
             saved_state=app_state or {},
+            algo_config=algo_config or {},
         )
     register_auth_callbacks(app)
     register_callbacks(app)

@@ -5,7 +5,7 @@ Provides flexible problem class for user-defined objectives and constraints.
 """
 
 import numpy as np
-from typing import List, Dict, Any, Optional, Callable
+from typing import List, Dict, Any, Optional
 from pymoo.core.problem import Problem
 from expression_parser import ExpressionParser
 
@@ -139,16 +139,9 @@ class GenericProblem(Problem):
         F = np.zeros((n_solutions, self.n_obj))
         G = np.zeros((n_solutions, self.n_constr)) if self.n_constr > 0 else None
         
-        # Prepare namespace for evaluation
-        namespace = {
-            **self.parser.SAFE_FUNCTIONS,
-            'np': np,
-        }
-        
-        # Add time for dynamic problems
-        if self.time_dependent:
-            namespace['t'] = self.current_time
-        
+        # Prepare namespace for evaluation (time only for dynamic problems)
+        namespace = self.parser.namespace(time=self.current_time if self.time_dependent else None)
+
         # Evaluate for each solution
         for i, x in enumerate(X):
             namespace['x'] = x
@@ -156,7 +149,7 @@ class GenericProblem(Problem):
             # Evaluate objectives
             for j, code in enumerate(self.compiled_objectives):
                 try:
-                    value = eval(code, {"__builtins__": {}}, namespace)
+                    value = eval(code, namespace)
                     # Handle maximize objectives (convert to minimize)
                     if self.objective_directions[j] == 'maximize':
                         value = -value
@@ -170,7 +163,7 @@ class GenericProblem(Problem):
             if self.n_constr > 0:
                 for j, code in enumerate(self.compiled_constraints):
                     try:
-                        value = eval(code, {"__builtins__": {}}, namespace)
+                        value = eval(code, namespace)
                         G[i, j] = value
                     except Exception as e:
                         # Assign large constraint violation for failed evaluations

@@ -28,13 +28,8 @@ class TestGUIComponents(unittest.TestCase):
         self.assertIsNotNone(create_results_layout())
 
     def test_algorithm_setup(self):
-        sm = StateManager()
-        engine = OptimizationEngine()
-        for alg_name in ["nsga2", "nsga3", "moead"]:
-            exp = sm.create_new_experiment(f"Test_{alg_name}")
-            exp.algorithm.algorithm = alg_name
-            algo = engine.setup_algorithm(exp)
-            self.assertIsNotNone(algo)
+        exp = StateManager().create_new_experiment("Test_nsga2")
+        self.assertIsNotNone(OptimizationEngine().setup_algorithm(exp))
 
 
 if __name__ == "__main__":

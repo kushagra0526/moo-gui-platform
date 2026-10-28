@@ -29,7 +29,14 @@ import numpy as np
 import plotly.graph_objects as go
 
 from dash import Input, Output, State, callback_context, no_update, ALL, html
-import dash_bootstrap_components as dbc
+from pymoo.algorithms.moo.nsga2 import NSGA2
+from pymoo.operators.crossover.sbx import SBX
+from pymoo.operators.mutation.pm import PM
+from pymoo.operators.sampling.rnd import FloatRandomSampling
+from pymoo.optimize import minimize
+from pymoo.indicators.hv import HV
+
+from cec2018_dmop import CEC2018Problem, N_OBJ, true_front
 
 # Max population points to render (downsampling for performance)
 _MAX_POP_RENDER = 200
@@ -55,26 +62,11 @@ def register_cec2018_callbacks(app):
         import json as _j
         pid = _j.loads(triggered.split(".")[0])["index"]
 
-        _NAMES = {
-            1:"DF1",2:"DF2",3:"DF3",4:"DF4",5:"DF5",6:"DF6",7:"DF7",
-            8:"DF8",9:"DF9",10:"DF10",11:"DF11",12:"DF12",13:"DF13",14:"DF14",
-        }
-        _NOBJ = {i: 2 for i in range(1,10)}
-        _NOBJ.update({i: 3 for i in range(10,15)})
-
         if (current_state or {}).get("running"):
             return no_update, no_update   # don't switch while running
 
-        label = f"{_NAMES[pid]}  ({_NOBJ[pid]}-objective)  — ready to run"
+        label = f"DF{pid}  ({N_OBJ[pid]}-objective)  — ready to run"
         return pid, label
-
-    # ── 1b. Enable Run button when a problem is selected ─────────────
-    # SOLE writer of cec-run-btn.disabled (shared with cec_control below,
-    # but cec_control is the authoritative writer during run/stop).
-    # We use a separate callback so there's no conflict.
-    # NOTE: cec_control is the SOLE writer — this callback is removed;
-    # the Run button starts disabled and cec_control enables it after stop.
-    # Instead we rely on cec_control reading cec-problem-id.
 
     # ── 2. Run / Stop control — SOLE writer of cec-run-btn.disabled,
     #       cec-stop-btn.disabled, cec-interval.disabled, cec-state ──
@@ -327,11 +319,9 @@ def register_cec2018_callbacks(app):
         State("cec-state",        "data"),
         State("cec-t1-select",    "value"),
         State("cec-t2-select",    "value"),
-        State("cec-taut",         "value"),
-        State("cec-nt",           "value"),
         prevent_initial_call=True,
     )
-    def do_compare(n_clicks, pid, cec_state, t1, t2, taut, nt):
+    def do_compare(n_clicks, pid, cec_state, t1, t2):
         from ..layouts.cec2018_layout import _empty_compare_fig
         empty = _empty_compare_fig()
 
@@ -348,40 +338,13 @@ def register_cec2018_callbacks(app):
                               style={"color": "#f87171"}))
 
         try:
-            import sys, os
-            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-            from cec2018_dmop.cec2018_DF import cec2018_DF
-
             pid_int = int(pid)
             t1      = int(t1)   if t1   is not None else 1
             t2      = int(t2)   if t2   is not None else 2
-            taut    = int(taut) if taut is not None else 10
-            nt      = int(nt)   if nt   is not None else 10
-            n_obj   = 2 if pid_int <= 9 else 3
+            n_obj   = N_OBJ[pid_int]
 
-            def _true_front(t_target):
-                T0    = 50
-                tau   = T0 + int(taut * (t_target * nt))
-                t_val = (1.0 / nt) * np.floor(max(tau + taut - T0 - 1, 0) / taut)
-                G     = np.sin(0.5 * np.pi * t_val)
-                N     = 400
-                pts   = []
-                if n_obj == 2:
-                    for x0 in np.linspace(0.0, 1.0, N):
-                        x = np.array([x0] + [G] * 9)
-                        f = cec2018_DF(pid_int, x, tau, taut, nt)
-                        pts.append([f[0], f[1]])
-                else:
-                    ns = int(np.sqrt(N))
-                    for x0 in np.linspace(0.0, 1.0, ns):
-                        for x1 in np.linspace(0.0, 1.0 - x0, ns):
-                            x = np.array([x0, x1] + [G] * 8)
-                            f = cec2018_DF(pid_int, x, tau, taut, nt)
-                            pts.append([f[0], f[1], f[2]])
-                return np.array(pts)
-
-            pf1 = _true_front(t1)
-            pf2 = _true_front(t2)
+            pf1 = true_front(pid_int, t1)
+            pf2 = true_front(pid_int, t2)
 
             overlay = _build_overlay_fig(pf1, pf2, t1, t2, pid_int, n_obj)
             fig_t1  = _build_single_fig(pf1, t1, pid_int, n_obj, "#3b82f6")
@@ -513,16 +476,6 @@ def _launch_cec_thread(app, state):
 
 def _cec_worker(app, state):
     try:
-        import sys, os
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-        from cec2018_dmop import CEC2018Problem
-        from pymoo.algorithms.moo.nsga2 import NSGA2
-        from pymoo.operators.crossover.sbx import SBX
-        from pymoo.operators.mutation.pm import PM
-        from pymoo.operators.sampling.rnd import FloatRandomSampling
-        from pymoo.optimize import minimize
-        from pymoo.indicators.hv import HV
-
         pid     = state["problem_id"]
         pop_sz  = state.get("pop_size",  100)
         max_gen = state.get("max_gen",   200)
@@ -531,6 +484,7 @@ def _cec_worker(app, state):
 
         problem = CEC2018Problem(problem_id=pid, taut=taut, nt=nt, n_var=10)
         hv_history = []
+        hv_ref = []  # fixed on the first generation so HV is comparable over time
 
         algo = NSGA2(
             pop_size=pop_sz,
@@ -548,21 +502,16 @@ def _cec_worker(app, state):
             problem.set_tau(a.n_gen)
             pf   = a.opt.get("F")
             popF = a.pop.get("F")
-            popX = a.pop.get("X")
 
             # Compute HV
             hv_val = 0.0
+            if not hv_ref:
+                hv_ref.append(np.max(pf, axis=0) + 1.0)
             try:
-                ref = np.max(pf, axis=0) + 1.0
-                hv_val = float(HV(ref_point=ref)(pf))
+                hv_val = float(HV(ref_point=hv_ref[0])(pf))
             except Exception:
                 pass
-
-            # Compute t value
-            T0 = 50
-            t_val = (1.0 / nt) * np.floor(
-                max(a.n_gen + taut - T0 - 1, 0) / taut
-            )
+            t_val = problem.time
 
             hv_history.append({"gen": a.n_gen, "hv": hv_val})
 

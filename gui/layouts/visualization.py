@@ -33,46 +33,33 @@ def create_visualization_layout():
                                         {"label": "2D Pareto Front", "value": "pareto_2d"},
                                         {"label": "3D Pareto Front", "value": "pareto_3d"},
                                         {"label": "Parallel Coordinates", "value": "parallel"},
-                                        {"label": "Convergence Metrics", "value": "convergence"},
-                                        {"label": "Population Evolution", "value": "evolution"}
+                                        {"label": "Convergence Metrics", "value": "convergence"}
                                     ],
                                     value="pareto_2d"
                                 )
-                            ], width=3),
+                            ], width=4),
                             dbc.Col([
                                 html.Label("X-Axis Objective:", className="form-label"),
                                 dbc.Select(
                                     id="x-axis-objective",
                                     options=[
-                                        {"label": "Objective 1", "value": 0},
-                                        {"label": "Objective 2", "value": 1}
+                                        {"label": "Objective 1", "value": "0"},
+                                        {"label": "Objective 2", "value": "1"}
                                     ],
-                                    value=0
+                                    value="0"
                                 )
-                            ], width=3),
+                            ], width=4),
                             dbc.Col([
                                 html.Label("Y-Axis Objective:", className="form-label"),
                                 dbc.Select(
                                     id="y-axis-objective",
                                     options=[
-                                        {"label": "Objective 1", "value": 0},
-                                        {"label": "Objective 2", "value": 1}
+                                        {"label": "Objective 1", "value": "0"},
+                                        {"label": "Objective 2", "value": "1"}
                                     ],
-                                    value=1
+                                    value="1"
                                 )
-                            ], width=3),
-                            dbc.Col([
-                                html.Label("Update Frequency:", className="form-label"),
-                                dbc.Select(
-                                    id="update-frequency",
-                                    options=[
-                                        {"label": "Real-time", "value": 1},
-                                        {"label": "Every 5 gen", "value": 5},
-                                        {"label": "Every 10 gen", "value": 10}
-                                    ],
-                                    value=5
-                                )
-                            ], width=3)
+                            ], width=4),
                         ])
                     ])
                 ])
@@ -83,32 +70,7 @@ def create_visualization_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader([
-                        html.H5("Optimization Progress", className="mb-0"),
-                        dbc.ButtonGroup([
-                            dbc.Button(
-                                html.I(className="fas fa-play"),
-                                id="btn-play-animation",
-                                color="success",
-                                size="sm",
-                                outline=True
-                            ),
-                            dbc.Button(
-                                html.I(className="fas fa-pause"),
-                                id="btn-pause-animation",
-                                color="warning",
-                                size="sm",
-                                outline=True
-                            ),
-                            dbc.Button(
-                                html.I(className="fas fa-download"),
-                                id="btn-download-plot",
-                                color="primary",
-                                size="sm",
-                                outline=True
-                            )
-                        ], size="sm", className="float-end")
-                    ], className="d-flex justify-content-between align-items-center"),
+                    dbc.CardHeader(html.H5("Optimization Progress", className="mb-0")),
                     dbc.CardBody([
                         dcc.Graph(
                             id="main-visualization",
@@ -123,10 +85,9 @@ def create_visualization_layout():
                 dbc.Card([
                     dbc.CardHeader("Performance Metrics"),
                     dbc.CardBody([
-                        html.Div(id="metrics-display", children=[
+                        html.Div([
                             create_metric_card("Generation", "0", "fas fa-clock"),
                             create_metric_card("Hypervolume", "0.000", "fas fa-cube"),
-                            create_metric_card("IGD", "0.000", "fas fa-ruler"),
                             create_metric_card("Solutions", "0", "fas fa-dot-circle")
                         ])
                     ])

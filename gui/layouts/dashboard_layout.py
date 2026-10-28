@@ -2,9 +2,8 @@
 Dashboard layout - Overview and quick stats
 """
 
-from dash import dcc, html
+from dash import html
 import dash_bootstrap_components as dbc
-import plotly.graph_objects as go
 
 def create_dashboard_layout():
     """Create a modern dashboard with overview statistics."""
@@ -24,7 +23,7 @@ def create_dashboard_layout():
                         html.Div([
                             html.I(className="fas fa-project-diagram fa-2x text-primary mb-3"),
                             html.H3("0", className="metric-value", id="total-projects"),
-                            html.P("Total Projects", className="metric-label"),
+                            html.P("Objectives Defined", className="metric-label"),
                         ], className="text-center")
                     ])
                 ], className="metric-card shadow")
@@ -108,7 +107,7 @@ def create_dashboard_layout():
                             dbc.ListGroupItem([
                                 html.I(className="fas fa-file-export me-2 text-warning"),
                                 "Export Data"
-                            ], id="quick-action-export", action=True, n_clicks=0, className="border-0"),
+                            ], href="/results", action=True, className="border-0"),
                         ], flush=True)
                     ])
                 ], className="shadow")
@@ -131,7 +130,7 @@ def create_dashboard_layout():
                             ], className="mb-2"),
                             html.Li([
                                 html.Strong("Configure Algorithm: "),
-                                "Choose and configure your optimization algorithm (NSGA-II, NSGA-III, etc.)"
+                                "Set the NSGA-II population, generations and operator settings"
                             ], className="mb-2"),
                             html.Li([
                                 html.Strong("Run Optimization: "),

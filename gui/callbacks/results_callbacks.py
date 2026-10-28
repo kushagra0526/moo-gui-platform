@@ -2,10 +2,19 @@
 Results and export callbacks
 """
 
-from dash import Input, Output, State, callback_context, no_update
-import pandas as pd
+import csv
+import io
 import json
+
+from dash import Input, Output, State, dcc, html
+import dash_bootstrap_components as dbc
+import plotly.graph_objects as go
 import numpy as np
+
+from ..layouts.results import (
+    create_preference_content, create_ranking_content, create_tradeoff_content
+)
+
 
 def register_results_callbacks(app):
     """Register results and export callbacks."""
@@ -18,13 +27,9 @@ def register_results_callbacks(app):
         Output("results-metric-hypervolume","children"),
         Output("results-metric-status",     "children"),
         Input("optimization-results", "data"),
-        prevent_initial_call=True
     )
     def update_results_summary(results_data):
         """Populate the results-page charts and metric pills."""
-        import plotly.graph_objects as go
-        import numpy as np
-
         def empty(title):
             fig = go.Figure()
             fig.update_layout(title=title, template="plotly_white")
@@ -62,11 +67,9 @@ def register_results_callbacks(app):
         history = results_data.get("convergence_history", [])
         conv_fig = go.Figure()
         if history:
-            gens = [h["generation"] for h in history]
-            hvs  = [h["hypervolume"] for h in history]
             conv_fig.add_trace(go.Scatter(
-                x=gens, y=hvs, mode="lines+markers",
-                name="Hypervolume", line=dict(color="blue", width=2)
+                x=[h["generation"] for h in history], y=[h["hypervolume"] for h in history],
+                mode="lines+markers", name="Hypervolume", line=dict(color="blue", width=2)
             ))
         conv_fig.update_layout(
             title="Convergence History", xaxis_title="Generation",
@@ -86,78 +89,18 @@ def register_results_callbacks(app):
         [Output("solutions-table", "data"),
          Output("solutions-table", "columns")],
         [Input("optimization-results", "data")],
-        prevent_initial_call=True
     )
     def update_solutions_table(results_data):
-        """Update the solutions table with Pareto-optimal solutions."""
-        if not results_data or not results_data.get("pareto_front"):
-            # Return empty with default columns
-            default_columns = [
-                {"name": "Solution ID", "id": "id"},
-                {"name": "Objective 1", "id": "f0", "type": "numeric", "format": {"specifier": ".4f"}},
-                {"name": "Objective 2", "id": "f1", "type": "numeric", "format": {"specifier": ".4f"}},
-                {"name": "Dominance Rank", "id": "rank", "type": "numeric"},
-                {"name": "Crowding Distance", "id": "crowding", "type": "numeric", "format": {"specifier": ".4f"}},
-                {"name": "Constraint Violation", "id": "cv", "type": "numeric", "format": {"specifier": ".4f"}}
-            ]
-            return [], default_columns
-        
-        pareto_front = np.array(results_data["pareto_front"])
-        n_objectives = pareto_front.shape[1]
-        
-        # Dynamically create columns based on number of objectives
-        columns = [{"name": "Solution ID", "id": "id"}]
-        
-        # Add objective columns dynamically
-        for j in range(n_objectives):
-            columns.append({
-                "name": f"Objective {j+1}",
-                "id": f"f{j}",
-                "type": "numeric",
-                "format": {"specifier": ".4f"}
-            })
-        
-        # Add metric columns
-        columns.extend([
-            {"name": "Dominance Rank", "id": "rank", "type": "numeric"},
-            {"name": "Crowding Distance", "id": "crowding", "type": "numeric", "format": {"specifier": ".4f"}},
-            {"name": "Constraint Violation", "id": "cv", "type": "numeric", "format": {"specifier": ".4f"}}
-        ])
-        
-        # Create table data
-        table_data = []
-        for i, solution in enumerate(pareto_front):
-            row = {"id": i}
-            
-            # Add ALL objective values dynamically
-            for j, obj_val in enumerate(solution):
-                row[f"f{j}"] = float(obj_val) if obj_val is not None else 0.0
-            
-            # Add additional metrics if available
-            metrics = results_data.get("solution_metrics", {})
-            if "dominance_rank" in metrics and i < len(metrics["dominance_rank"]):
-                row["rank"] = int(metrics["dominance_rank"][i])
-            else:
-                row["rank"] = 1  # All Pareto-optimal solutions have rank 1
-            
-            if "crowding_distance" in metrics and i < len(metrics["crowding_distance"]):
-                row["crowding"] = float(metrics["crowding_distance"][i])
-            else:
-                row["crowding"] = 0.0
-            
-            if "constraint_violation" in metrics and i < len(metrics["constraint_violation"]):
-                row["cv"] = float(metrics["constraint_violation"][i])
-            else:
-                row["cv"] = 0.0
-            
-            table_data.append(row)
-        
-        return table_data, columns
-    
+        """One row per Pareto-optimal solution: objective values, then decision variables."""
+        header, rows = _pareto_rows(results_data)
+        columns = [{"name": "Solution ID", "id": "id"}] + [
+            {"name": h, "id": h, "type": "numeric", "format": {"specifier": ".4f"}} for h in header[1:]
+        ]
+        return [dict(zip(header, r)) for r in rows], columns
+
     @app.callback(
         Output("decision-content", "children"),
         [Input("decision-tabs", "active_tab")],
-        prevent_initial_call=True
     )
     def update_decision_content(active_tab):
         """Update decision making content based on active tab."""
@@ -167,266 +110,200 @@ def register_results_callbacks(app):
             return create_ranking_content()
         elif active_tab == "tradeoff":
             return create_tradeoff_content()
-        
         return []
-    
+
     @app.callback(
         Output("generated-code", "value"),
         Output("code-collapse", "is_open"),
         [Input("btn-generate-code", "n_clicks")],
-        [State("app-state", "data")],
+        [State("app-state", "data"), State("algo-config", "data")],
         prevent_initial_call=True
     )
-    def generate_python_code(n_clicks, app_state):
+    def generate_python_code(n_clicks, app_state, algo_config):
         """Generate Python code for the current experiment."""
-        if not n_clicks or not app_state:
-            return "", False
-        
-        code = generate_pymoo_code(app_state)
-        return code, True
-    
+        return generate_pymoo_code(app_state, algo_config), True
+
+    # Header "Save" — available on every page
     @app.callback(
-        Output("experiment-name", "value"),
-        [Input("btn-load-experiment", "n_clicks")],
-        prevent_initial_call=True
+        Output("download", "data"),
+        Input("btn-save-experiment", "n_clicks"),
+        State("app-state", "data"),
+        State("algo-config", "data"),
+        State("optimization-results", "data"),
+        prevent_initial_call=True,
     )
-    def load_experiment(n_clicks):
-        """Load an experiment from file."""
-        if not n_clicks:
-            return no_update
-        
-        # In a real implementation, this would open a file dialog
-        # For now, return a placeholder
-        return "loaded_experiment"
-    
+    def save_experiment(_n, app_state, algo_config, results_data):
+        """Download the problem, algorithm settings and latest results as JSON."""
+        return _experiment_download("experiment", "", app_state, algo_config, results_data, "json")
+
+    # Results page "Export"
+    @app.callback(
+        Output("download", "data", allow_duplicate=True),
+        Input("btn-export-results", "n_clicks"),
+        State("export-format", "value"),
+        State("experiment-name", "value"),
+        State("experiment-description", "value"),
+        State("app-state", "data"),
+        State("algo-config", "data"),
+        State("optimization-results", "data"),
+        prevent_initial_call=True,
+    )
+    def export_results(_n, fmt, name, description, app_state, algo_config, results_data):
+        """Download the Pareto set as CSV or the whole experiment as JSON."""
+        return _experiment_download(name or "experiment", description or "",
+                                    app_state, algo_config, results_data, fmt)
+
     @app.callback(
         Output("objective-weights-container", "children"),
         [Input("optimization-results", "data")],
-        prevent_initial_call=True
     )
     def create_objective_weights(results_data):
         """Create objective weight controls for preference articulation."""
-        from dash import html
-        import dash_bootstrap_components as dbc
-        
         if not results_data or not results_data.get("pareto_front"):
             return html.P("No objectives available", className="text-muted")
-        
-        pareto_front = np.array(results_data["pareto_front"])
-        n_objectives = pareto_front.shape[1]
-        
-        weight_controls = []
-        for i in range(n_objectives):
-            weight_controls.append(
-                dbc.Row([
-                    dbc.Col([
-                        html.Label(f"Objective {i}:", className="form-label")
-                    ], width=6),
-                    dbc.Col([
-                        dbc.Input(
-                            id=f"weight-obj-{i}",
-                            type="number",
-                            value=1.0/n_objectives,
-                            min=0.0,
-                            max=1.0,
-                            step=0.1
-                        )
-                    ], width=6)
-                ], className="mb-2")
-            )
-        
-        return weight_controls
-    
+
+        n_objectives = np.array(results_data["pareto_front"]).shape[1]
+        return [
+            dbc.Row([
+                dbc.Col([html.Label(f"Objective {i}:", className="form-label")], width=6),
+                dbc.Col([dbc.Input(id=f"weight-obj-{i}", type="number", value=1.0 / n_objectives,
+                                   min=0.0, max=1.0, step=0.1)], width=6)
+            ], className="mb-2")
+            for i in range(n_objectives)
+        ]
+
     @app.callback(
         Output("aspiration-levels-container", "children"),
         [Input("optimization-results", "data")],
-        prevent_initial_call=True
     )
     def create_aspiration_levels(results_data):
         """Create aspiration level controls."""
-        from dash import html
-        import dash_bootstrap_components as dbc
-        
         if not results_data or not results_data.get("pareto_front"):
             return html.P("No objectives available", className="text-muted")
-        
+
         pareto_front = np.array(results_data["pareto_front"])
-        n_objectives = pareto_front.shape[1]
-        
-        # Calculate reasonable aspiration levels based on Pareto front
         min_vals = np.min(pareto_front, axis=0)
         max_vals = np.max(pareto_front, axis=0)
-        
-        aspiration_controls = []
-        for i in range(n_objectives):
-            aspiration_controls.append(
-                dbc.Row([
-                    dbc.Col([
-                        html.Label(f"Objective {i}:", className="form-label")
-                    ], width=6),
-                    dbc.Col([
-                        dbc.Input(
-                            id=f"aspiration-obj-{i}",
-                            type="number",
-                            value=float(min_vals[i]),
-                            min=float(min_vals[i]),
-                            max=float(max_vals[i]),
-                            step=(max_vals[i] - min_vals[i]) / 100
-                        )
-                    ], width=6)
-                ], className="mb-2")
-            )
-        
-        return aspiration_controls
+        return [
+            dbc.Row([
+                dbc.Col([html.Label(f"Objective {i}:", className="form-label")], width=6),
+                dbc.Col([dbc.Input(id=f"aspiration-obj-{i}", type="number", value=float(min_vals[i]),
+                                   min=float(min_vals[i]), max=float(max_vals[i]),
+                                   step=(max_vals[i] - min_vals[i]) / 100 or None)], width=6)
+            ], className="mb-2")
+            for i in range(pareto_front.shape[1])
+        ]
 
-def create_preference_content():
-    """Create preference articulation interface."""
-    from dash import html
-    import dash_bootstrap_components as dbc
-    
-    return dbc.Row([
-        dbc.Col([
-            html.H6("Objective Weights"),
-            html.Div(id="objective-weights-container")
-        ], width=4),
-        dbc.Col([
-            html.H6("Aspiration Levels"),
-            html.Div(id="aspiration-levels-container")
-        ], width=4),
-        dbc.Col([
-            html.H6("Reference Points"),
-            html.Div(id="reference-points-container")
-        ], width=4)
-    ])
 
-def create_ranking_content():
-    """Create solution ranking interface."""
-    from dash import html
-    import dash_bootstrap_components as dbc
-    
-    return dbc.Row([
-        dbc.Col([
-            html.Label("Ranking Method:", className="form-label"),
-            dbc.Select(
-                id="ranking-method",
-                options=[
-                    {"label": "TOPSIS", "value": "topsis"},
-                    {"label": "Weighted Sum", "value": "weighted_sum"},
-                    {"label": "Compromise Programming", "value": "compromise"},
-                    {"label": "ELECTRE", "value": "electre"}
-                ],
-                value="topsis"
-            )
-        ], width=6),
-        dbc.Col([
-            dbc.Button(
-                "Apply Ranking",
-                id="btn-apply-ranking",
-                color="primary"
-            )
-        ], width=6)
-    ])
+def _pareto_rows(results_data):
+    """Header and rows of the Pareto set: id, f0..fm, x0..xn."""
+    pf = (results_data or {}).get("pareto_front") or []
+    ps = (results_data or {}).get("pareto_set") or []
+    n_obj = len(pf[0]) if pf else 2
+    n_var = len(ps[0]) if ps else 0
+    header = ["id"] + [f"f{j}" for j in range(n_obj)] + [f"x{j}" for j in range(n_var)]
+    rows = [[i] + list(f) + (list(ps[i]) if i < len(ps) else []) for i, f in enumerate(pf)]
+    return header, rows
 
-def create_tradeoff_content():
-    """Create trade-off analysis interface."""
-    from dash import html
-    import dash_bootstrap_components as dbc
-    
-    return dbc.Row([
-        dbc.Col([
-            html.P("Select two solutions to analyze trade-offs:"),
-            dbc.Select(
-                id="solution-a-select",
-                placeholder="Select Solution A"
-            )
-        ], width=4),
-        dbc.Col([
-            dbc.Select(
-                id="solution-b-select",
-                placeholder="Select Solution B"
-            )
-        ], width=4),
-        dbc.Col([
-            dbc.Button(
-                "Analyze Trade-offs",
-                id="btn-analyze-tradeoffs",
-                color="primary"
-            )
-        ], width=4)
-    ])
 
-def generate_pymoo_code(app_state):
-    """Generate Python code that reproduces the current experiment."""
-    if not app_state:
-        return "# No experiment data available"
-    
-    code_lines = [
+def _experiment_download(name, description, app_state, algo_config, results_data, fmt):
+    """dcc.Download payload: Pareto set as CSV, or everything as JSON."""
+    safe_name = "".join(c for c in name if c.isalnum() or c in "-_") or "experiment"
+    if fmt == "csv":
+        header, rows = _pareto_rows(results_data)
+        buf = io.StringIO()
+        csv.writer(buf).writerows([header] + rows)
+        return dcc.send_string(buf.getvalue(), f"{safe_name}_pareto.csv")
+    payload = {
+        "name": name,
+        "description": description,
+        "problem": {k: v for k, v in (app_state or {}).items() if not k.startswith(("optimization_", "current_"))},
+        "algorithm": algo_config or {},
+        "results": results_data or {},
+    }
+    return dcc.send_string(json.dumps(payload, indent=2), f"{safe_name}.json")
+
+
+def generate_pymoo_code(app_state, algo_config=None):
+    """Generate a standalone pymoo script that reproduces the current experiment."""
+    state = app_state or {}
+    cfg = algo_config or {}
+    objectives = [(e.strip(), d) for e, d in zip(state.get("obj_expressions") or [],
+                                                  (state.get("obj_directions") or []) + ["minimize"] * 99)
+                  if e and e.strip()]
+    if len(objectives) < 2 or not state.get("var_names"):
+        return "# Define at least one variable and two objectives on the Problem page first."
+
+    n_var = len(state["var_names"])
+    types = (state.get("var_types") or []) + ["continuous"] * n_var
+    lowers = [0.0 if types[i] == "binary" else float((state.get("var_lowers") or [0] * n_var)[i] or 0)
+              for i in range(n_var)]
+    uppers = [1.0 if types[i] == "binary" else float((state.get("var_uppers") or [1] * n_var)[i] or 0)
+              for i in range(n_var)]
+    int_idx = [i for i in range(n_var) if types[i] in ("integer", "binary")]
+    constraints = [(e.strip(), t or "ineq") for e, t in zip(state.get("constraint_expressions") or [],
+                                                           (state.get("constraint_types") or []) + ["ineq"] * 99)
+                   if e and e.strip()]
+
+    f_lines = [f"            -({e}),  # maximize" if d == "maximize" else f"            {e},"
+               for e, d in objectives]
+    g_lines = [f"            abs({e}) - 1e-4,  # equality" if t == "eq" else f"            {e},"
+               for e, t in constraints]
+    mut = cfg.get("mutation_prob")
+
+    code = [
         "#!/usr/bin/env python3",
-        '"""',
-        "Generated code for multi-objective optimization experiment",
-        f"Experiment: {app_state.get('experiment_name', 'Unnamed')}",
-        '"""',
+        f'"""Generated pymoo script for experiment: {state.get("experiment_name", "experiment")}"""',
         "",
         "import numpy as np",
+        "from numpy import (sin, cos, tan, arcsin, arccos, arctan, sinh, cosh, tanh, exp, log, log10, log2,",
+        "                   sqrt, abs, floor, ceil, round, sign, sum, mean, max, min, std, var, square, pi, e)",
+        "from numpy import power as pow",
         "from pymoo.algorithms.moo.nsga2 import NSGA2",
-        "from pymoo.core.problem import Problem",
-        "from pymoo.optimize import minimize",
+        "from pymoo.core.problem import ElementwiseProblem",
+        *(["from pymoo.core.repair import Repair"] if int_idx else []),
         "from pymoo.operators.crossover.sbx import SBX",
         "from pymoo.operators.mutation.pm import PM",
-        "from pymoo.operators.sampling.rnd import FloatRandomSampling",
+        "from pymoo.optimize import minimize",
         "",
-        "class CustomProblem(Problem):",
+        "",
+        "class UserProblem(ElementwiseProblem):",
         "    def __init__(self):",
-        "        super().__init__(",
-        f"            n_var={len(app_state.get('variables', []))},",
-        f"            n_obj={len(app_state.get('objectives', []))},",
-        f"            n_constr={len(app_state.get('constraints', []))},",
-        "            xl=np.array([0.0, 0.0]),  # Lower bounds",
-        "            xu=np.array([1.0, 1.0])   # Upper bounds",
-        "        )",
+        f"        super().__init__(n_var={n_var}, n_obj={len(objectives)}, n_ieq_constr={len(constraints)},",
+        f"                         xl=np.array({lowers}), xu=np.array({uppers}))",
         "",
-        "    def _evaluate(self, X, out, *args, **kwargs):",
-        "        # Objective functions",
-        "        f1 = X[:, 0]**2 + X[:, 1]**2",
-        "        f2 = (X[:, 0] - 1)**2 + (X[:, 1] - 1)**2",
-        "        ",
-        "        out['F'] = np.column_stack([f1, f2])",
-        "",
-        "# Create problem instance",
-        "problem = CustomProblem()",
-        "",
-        "# Configure algorithm",
-        "algorithm = NSGA2(",
-        f"    pop_size={app_state.get('population_size', 100)},",
-        "    sampling=FloatRandomSampling(),",
-        "    crossover=SBX(prob=0.9, eta=15),",
-        "    mutation=PM(prob=0.1, eta=20),",
-        "    eliminate_duplicates=True",
-        ")",
-        "",
-        "# Run optimization",
-        "res = minimize(",
-        "    problem,",
-        "    algorithm,",
-        f"    ('n_gen', {app_state.get('max_generations', 250)}),",
-        f"    seed={app_state.get('random_seed', 42)},",
-        "    verbose=True",
-        ")",
-        "",
-        "# Print results",
-        "print(f'Number of solutions: {len(res.F)}')",
-        "print(f'Objective values:')",
-        "print(res.F)",
-        "",
-        "# Plot results (optional)",
-        "import matplotlib.pyplot as plt",
-        "plt.figure(figsize=(8, 6))",
-        "plt.scatter(res.F[:, 0], res.F[:, 1], c='red', marker='o')",
-        "plt.xlabel('Objective 1')",
-        "plt.ylabel('Objective 2')",
-        "plt.title('Pareto Front')",
-        "plt.grid(True)",
-        "plt.show()"
+        "    def _evaluate(self, x, out, *args, **kwargs):",
+        "        out['F'] = [",
+        *f_lines,
+        "        ]",
     ]
-    
-    return "\n".join(code_lines)
+    if constraints:
+        code += ["        out['G'] = [  # feasible when <= 0", *g_lines, "        ]"]
+    if int_idx:
+        code += [
+            "",
+            "",
+            "class RoundIntegers(Repair):",
+            "    def _do(self, problem, X, **kwargs):",
+            f"        X[:, {int_idx}] = np.round(X[:, {int_idx}])",
+            "        return X",
+        ]
+    code += [
+        "",
+        "",
+        "algorithm = NSGA2(",
+        f"    pop_size={int(cfg.get('population_size') or 100)},",
+        f"    crossover=SBX(prob={cfg.get('crossover_prob', 0.9)}, eta=15),",
+        f"    mutation=PM({'prob=' + str(mut) + ', ' if mut is not None else ''}eta=20),",
+        "    eliminate_duplicates=True,",
+        *(["    repair=RoundIntegers(),"] if int_idx else []),
+        ")",
+        "",
+        "res = minimize(UserProblem(), algorithm,",
+        f"               ('n_gen', {int(cfg.get('max_generations') or 250)}),",
+        f"               seed={cfg.get('random_seed', 42)}, verbose=True)",
+        "",
+        "print(f'Pareto solutions: {len(res.F)}')",
+        "print(res.F)  # maximized objectives appear negated",
+    ]
+    return "\n".join(code)

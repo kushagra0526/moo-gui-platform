@@ -7,8 +7,7 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import numpy as np
-from gui.core.state_manager import StateManager, Variable, Objective, Constraint, ProblemDefinition, AlgorithmConfig
+from gui.core.state_manager import StateManager, Variable, Objective, ProblemDefinition, AlgorithmConfig
 from gui.core.optimization_engine import OptimizationEngine
 
 def create_zdt1_problem():

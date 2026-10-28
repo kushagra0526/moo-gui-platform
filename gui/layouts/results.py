@@ -104,29 +104,7 @@ def create_results_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader([
-                        html.H5("Experiment Management", className="mb-0"),
-                        dbc.ButtonGroup([
-                            dbc.Button(
-                                [html.I(className="fas fa-folder-open me-1"), "Load"],
-                                id="btn-load-experiment",
-                                color="primary",
-                                size="sm"
-                            ),
-                            dbc.Button(
-                                [html.I(className="fas fa-save me-1"), "Save"],
-                                id="btn-save-experiment-results",
-                                color="success",
-                                size="sm"
-                            ),
-                            dbc.Button(
-                                [html.I(className="fas fa-copy me-1"), "Compare"],
-                                id="btn-compare-experiments",
-                                color="info",
-                                size="sm"
-                            )
-                        ], size="sm", className="float-end")
-                    ], className="d-flex justify-content-between align-items-center"),
+                    dbc.CardHeader(html.H5("Experiment", className="mb-0")),
                     dbc.CardBody([
                         dbc.Row([
                             dbc.Col([
@@ -155,25 +133,7 @@ def create_results_layout():
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader([
-                        html.H5("Pareto-Optimal Solutions", className="mb-0"),
-                        dbc.ButtonGroup([
-                            dbc.Button(
-                                [html.I(className="fas fa-sort me-1"), "Rank"],
-                                id="btn-rank-solutions",
-                                color="primary",
-                                size="sm",
-                                outline=True
-                            ),
-                            dbc.Button(
-                                [html.I(className="fas fa-filter me-1"), "Filter"],
-                                id="btn-filter-solutions",
-                                color="secondary",
-                                size="sm",
-                                outline=True
-                            )
-                        ], size="sm", className="float-end")
-                    ], className="d-flex justify-content-between align-items-center"),
+                    dbc.CardHeader(html.H5("Pareto-Optimal Solutions", className="mb-0")),
                     dbc.CardBody([
                         dash_table.DataTable(
                             id="solutions-table",
@@ -227,32 +187,15 @@ def create_results_layout():
                         dbc.Row([
                             dbc.Col([
                                 html.Label("Export Format:", className="form-label"),
-                                dbc.Checklist(
-                                    id="export-formats",
+                                dbc.RadioItems(
+                                    id="export-format",
                                     options=[
-                                        {"label": "CSV (Solutions)", "value": "csv"},
-                                        {"label": "JSON (Complete)", "value": "json"},
-                                        {"label": "Images (Plots)", "value": "images"},
-                                        {"label": "PDF Report", "value": "pdf"},
-                                        {"label": "Python Code", "value": "python"}
+                                        {"label": "CSV (Pareto solutions)", "value": "csv"},
+                                        {"label": "JSON (problem, settings and results)", "value": "json"},
                                     ],
-                                    value=["csv", "images"]
+                                    value="csv"
                                 )
-                            ], width=4),
-                            dbc.Col([
-                                html.Label("Include:", className="form-label"),
-                                dbc.Checklist(
-                                    id="export-content",
-                                    options=[
-                                        {"label": "Problem Definition", "value": "problem"},
-                                        {"label": "Algorithm Parameters", "value": "algorithm"},
-                                        {"label": "Convergence History", "value": "convergence"},
-                                        {"label": "Performance Metrics", "value": "metrics"},
-                                        {"label": "All Solutions", "value": "all_solutions"}
-                                    ],
-                                    value=["problem", "algorithm", "metrics"]
-                                )
-                            ], width=4),
+                            ], width=8),
                             dbc.Col([
                                 html.Label("Actions:", className="form-label"),
                                 html.Div([
@@ -266,12 +209,6 @@ def create_results_layout():
                                         [html.I(className="fas fa-code me-1"), "Generate Code"],
                                         id="btn-generate-code",
                                         color="primary",
-                                        className="mb-2 d-block"
-                                    ),
-                                    dbc.Button(
-                                        [html.I(className="fas fa-file-pdf me-1"), "Create Report"],
-                                        id="btn-create-report",
-                                        color="info",
                                         className="d-block"
                                     )
                                 ])
@@ -289,13 +226,8 @@ def create_results_layout():
                     dbc.Card([
                         dbc.CardHeader([
                             html.H5("Generated Python Code", className="mb-0"),
-                            dbc.Button(
-                                [html.I(className="fas fa-copy me-1"), "Copy"],
-                                id="btn-copy-code",
-                                color="primary",
-                                size="sm",
-                                className="float-end"
-                            )
+                            dcc.Clipboard(target_id="generated-code", title="Copy code",
+                                          className="float-end", style={"cursor": "pointer"})
                         ], className="d-flex justify-content-between align-items-center"),
                         dbc.CardBody([
                             dcc.Textarea(

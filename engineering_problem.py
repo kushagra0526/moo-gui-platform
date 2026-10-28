@@ -4,9 +4,7 @@ Engineering optimization problem examples and templates.
 Provides common engineering problems for testing and demonstration.
 """
 
-import numpy as np
 from typing import Dict, Any, List
-from generic_problem import GenericProblem
 
 
 class EngineeringProblems:

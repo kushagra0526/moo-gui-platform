@@ -14,12 +14,12 @@ Multi-objective optimization often requires manual scripting and post-processing
 
 ### Key Capabilities
 
-- **Problem Modeling**: Define continuous, integer, and binary decision variables, multiple objective functions, and constraints using safe mathematical expressions.
+- **Problem Modeling**: Define continuous, integer, and binary decision variables, multiple objective functions, and inequality/equality constraints using safe mathematical expressions (arithmetic, `x[i]` indexing and functions such as `sin`, `exp`, `sqrt`, `sum`).
 - **Optimization Algorithm**: Powered by **NSGA-II** (Non-dominated Sorting Genetic Algorithm II) with configurable population size, generations, Simulated Binary Crossover (SBX), and Polynomial Mutation (PM).
 - **Dynamic Optimization**: Includes benchmark support for dynamic environments (such as the CEC 2018 benchmark suite) with time-dependent environment tracking.
 - **Visual Analytics**: Interactive 2D/3D Pareto front scatter plots, parallel coordinate plots, and live convergence tracking (Hypervolume, Spread, Spacing).
-- **Decision Support**: Multi-criteria evaluation, trade-off inspection, and solution sorting.
-- **Persistence & Export**: Save and load complete experiment states in JSON/YAML, export Pareto fronts to CSV, and inspect individual candidate solutions.
+- **Decision Support**: Sortable, filterable table of Pareto-optimal solutions with their decision variables.
+- **Persistence & Export**: Download the experiment (problem, settings and results) as JSON, export the Pareto set to CSV, generate a standalone pymoo script, and inspect individual candidate solutions.
 
 ---
 
@@ -28,7 +28,7 @@ Multi-objective optimization often requires manual scripting and post-processing
 ```
 moo-gui-platform/
 ├── assets/                 # Themes (dark/light), typography, and custom CSS
-├── cec2018_dmop/           # Dynamic benchmark suite (DF1-DF14) and time generators
+├── cec2018_dmop/           # CEC2018 dynamic benchmarks (DF1-DF14, via pymoo) with the competition's time schedule
 ├── database/               # User state persistence (users.json)
 ├── examples/               # Programmatic usage and automation scripts
 ├── gui/                    # Dash application package
@@ -45,8 +45,7 @@ moo-gui-platform/
 ├── engineering_problem.py  # Standard engineering problem templates
 ├── main.py                 # Application entry point and WSGI server export
 ├── Procfile                # PaaS deployment specification
-├── requirements.txt        # Core dependencies
-└── setup.py                # Package metadata and installation script
+└── requirements.txt        # Core dependencies
 ```
 
 ---
@@ -98,6 +97,8 @@ The platform comes initialized with a local test account:
 
 *(You can also register a new account directly from the login page).*
 
+Before deploying publicly, remove this test account from `database/users.json`: its password is published here, and sign-up is open to anyone who can reach the site.
+
 ---
 
 ## Deployment
@@ -119,8 +120,10 @@ docker run -p 8080:8080 moo-gui-platform
 
 The application exports a standard WSGI `server` object in `main.py`:
 ```bash
-gunicorn --workers 4 --threads 2 --timeout 120 --bind 0.0.0.0:8080 main:server
+gunicorn --workers 1 --threads 4 --timeout 120 --bind 0.0.0.0:8080 main:server
 ```
+
+Keep a single worker: a running optimization lives in that process's memory, so a second worker would not see it.
 
 ### Cloud PaaS (Render / Railway / Fly.io)
 
@@ -136,7 +139,7 @@ gunicorn --workers 4 --threads 2 --timeout 120 --bind 0.0.0.0:8080 main:server
 | `PORT` / `MOO_GUI_PORT` | `8080` | Web server port |
 | `MOO_GUI_HOST` | `0.0.0.0` | Bind host address |
 | `MOO_GUI_DEBUG` | `false` | Enable Dash hot-reloading |
-| `MOO_GUI_TIMEOUT` | `60` | Optimization timeout in minutes |
+| `MOO_GUI_SECRET_KEY` | random per start | Signs the login session cookie. Set it so logins survive restarts |
 
 ---
 

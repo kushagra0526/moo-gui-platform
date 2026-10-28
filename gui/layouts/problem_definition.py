@@ -2,7 +2,7 @@
 Problem definition layout for variables, objectives, and constraints
 """
 
-from dash import dcc, html, dash_table
+from dash import dcc, html
 import dash_bootstrap_components as dbc
 
 def create_problem_definition_layout(saved_state=None):
@@ -16,6 +16,9 @@ def create_problem_definition_layout(saved_state=None):
     obj_names  = saved.get("obj_names",  [])
     obj_dirs   = saved.get("obj_directions", [])
     obj_exprs  = saved.get("obj_expressions", [])
+    con_names  = saved.get("constraint_names") or []
+    con_types  = saved.get("constraint_types") or []
+    con_exprs  = saved.get("constraint_expressions") or []
 
     # Build variable rows from saved state, or default 2 rows (x0, x1)
     if var_names and len(var_names) > 0:
@@ -45,39 +48,25 @@ def create_problem_definition_layout(saved_state=None):
         ]
     else:
         objective_rows = [create_objective_row(0, expression=""), create_objective_row(1, expression="")]
+
+    # Restore constraint rows, or show the placeholder
+    constraint_rows = [
+        create_constraint_row(
+            i,
+            name=con_names[i] if i < len(con_names) else None,
+            ctype=con_types[i] if i < len(con_types) and con_types[i] else "ineq",
+            expression=con_exprs[i],
+        )
+        for i in range(len(con_exprs))
+    ] or [NO_CONSTRAINTS]
+
     return dbc.Container([
-        # Version indicator (hidden)
-        html.Div("v2.0-enhanced", id="layout-version", style={"display": "none"}),
-        
         dbc.Row([
             dbc.Col([
                 html.H4("Problem Definition", className="section-title"),
                 html.P("Define your multi-objective optimization problem with variables, objectives, and constraints.", 
                        className="section-description")
             ])
-        ], className="mb-4"),
-        
-        # Problem Type Selection
-        dbc.Row([
-            dbc.Col([
-                dbc.Card([
-                    dbc.CardHeader("Problem Type"),
-                    dbc.CardBody([
-                        dbc.RadioItems(
-                            id="problem-type",
-                            options=[
-                                {"label": "Static Multi-Objective", "value": "static"},
-                                {"label": "Many-Objective (>3 objectives)", "value": "many"}
-                            ],
-                            value="static",
-                            inline=True
-                        ),
-                        html.Div(id="problem-type-info", className="mt-2"),
-                        html.Div(id="cec2018-selector-div", style={"display": "none"}),
-                        html.Div(id="cec2018-problem-select", style={"display": "none"}),
-                    ])
-                ])
-            ], width=12)
         ], className="mb-4"),
         
         # Decision Variables Section
@@ -137,10 +126,7 @@ def create_problem_definition_layout(saved_state=None):
                         )
                     ], className="d-flex justify-content-between align-items-center"),
                     dbc.CardBody([
-                        html.Div(id="constraints-container", children=[
-                            html.P("No constraints defined. Click 'Add Constraint' to add constraints.", 
-                                   className="text-muted")
-                        ])
+                        html.Div(id="constraints-container", children=constraint_rows)
                     ])
                 ])
             ], width=12)
@@ -161,6 +147,10 @@ def create_problem_definition_layout(saved_state=None):
         
     ], fluid=True)
 
+NO_CONSTRAINTS = html.P("No constraints defined. Click 'Add Constraint' to add constraints.",
+                        className="text-muted")
+
+
 def create_variable_row(index, name=None, vtype="continuous", lower=0, upper=1):
     """Create a single variable definition row."""
     return dbc.Row([
@@ -173,7 +163,7 @@ def create_variable_row(index, name=None, vtype="continuous", lower=0, upper=1):
                     value=name if name is not None else f"x{index}"
                 )
             ])
-        ], width=3),
+        ], width=5),
         dbc.Col([
             dbc.Select(
                 id={"type": "var-type", "index": index},
@@ -199,12 +189,6 @@ def create_variable_row(index, name=None, vtype="continuous", lower=0, upper=1):
                 type="number",
                 placeholder="Upper bound",
                 value=upper
-            )
-        ], width=2),
-        dbc.Col([
-            dbc.Input(
-                id={"type": "var-initial", "index": index},
-                placeholder="Initial value (optional)"
             )
         ], width=2),
         dbc.Col([
@@ -354,7 +338,7 @@ def create_objective_row(index, name=None, direction="minimize", expression=None
         
     ], className="objective-row p-3 mb-3", style={"borderRadius": "16px"})
 
-def create_constraint_row(index):
+def create_constraint_row(index, name=None, ctype="ineq", expression=None):
     """Create a single constraint definition row."""
     return dbc.Row([
         dbc.Col([
@@ -363,7 +347,7 @@ def create_constraint_row(index):
                 dbc.Input(
                     id={"type": "constraint-name", "index": index},
                     placeholder="Constraint name",
-                    value=f"constraint_{index}"
+                    value=name if name is not None else f"constraint_{index}"
                 )
             ])
         ], width=3),
@@ -374,23 +358,17 @@ def create_constraint_row(index):
                     {"label": "Inequality (≤ 0)", "value": "ineq"},
                     {"label": "Equality (= 0)", "value": "eq"}
                 ],
-                value="ineq"
+                value=ctype
             )
         ], width=2),
         dbc.Col([
             dbc.Textarea(
                 id={"type": "constraint-expression", "index": index},
-                placeholder="Constraint expression (Python)",
-                rows=2
+                placeholder="Constraint expression, e.g. x[0] + x[1] - 1",
+                rows=2,
+                value=expression or ""
             )
-        ], width=5),
-        dbc.Col([
-            dbc.Checklist(
-                id={"type": "constraint-dynamic", "index": index},
-                options=[{"label": "Time-dependent", "value": "dynamic"}],
-                value=[]
-            )
-        ], width=1),
+        ], width=6),
         dbc.Col([
             dbc.Button(
                 html.I(className="fas fa-trash"),

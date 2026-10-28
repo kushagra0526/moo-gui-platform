@@ -36,16 +36,18 @@ def _nav_link(icon_cls, label, href, active_path):
     )
 
 
-def create_main_layout(user_data=None, pathname="/dashboard", engine_running=False, saved_state=None):
+def create_main_layout(user_data=None, pathname="/dashboard", engine_running=False, saved_state=None, algo_config=None):
     """Create the authenticated shell layout."""
 
     full_name = (user_data or {}).get("full_name", "User")
     email     = (user_data or {}).get("email", "")
 
-    # Resolve inner page — pass saved_state to problem page for restoration
+    # Resolve inner page — pass saved values to the problem and algorithm pages for restoration
     page_factory = PAGE_MAP.get(pathname, create_dashboard_layout)
-    if pathname == "/problem" and saved_state:
+    if pathname == "/problem":
         inner_page = page_factory(saved_state=saved_state)
+    elif pathname == "/algorithm":
+        inner_page = page_factory(saved=algo_config)
     else:
         inner_page = page_factory()
 

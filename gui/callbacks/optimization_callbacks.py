@@ -15,10 +15,11 @@ Strategy:
   algo-config store            — written ONLY by update_algorithm_state
 """
 
-from dash import Input, Output, State, callback_context, no_update, ALL
+import time
+
+from dash import Input, Output, State, callback_context, no_update
 from ..core.state_manager import (
-    StateManager, Variable, Objective, Constraint,
-    ProblemDefinition, AlgorithmConfig
+    Variable, Objective, Constraint, ProblemDefinition, AlgorithmConfig, ExperimentState
 )
 
 
@@ -42,14 +43,12 @@ def register_optimization_callbacks(app):
     )
     def control_optimization(run_clicks, stop_clicks, current_state, algo_config):
         ctx = callback_context
-        print(f"[OPT] control_optimization triggered: {[t['prop_id'] for t in ctx.triggered]}, run={run_clicks}, stop={stop_clicks}")
         if not ctx.triggered:
             return no_update, no_update, no_update, no_update
 
         button_id = ctx.triggered[0]["prop_id"].split(".")[0]
 
         if button_id == "btn-run-optimization":
-            print(f"[OPT] RUN CLICKED — engine_running={app.optimization_engine.is_running}")
             if app.optimization_engine.is_running:
                 return True, False, False, no_update
 
@@ -59,19 +58,15 @@ def register_optimization_callbacks(app):
             if algo_config:
                 merged.update(algo_config)
 
-            # Require at least 2 valid objectives for static/many optimization
-            obj_exprs = merged.get("obj_expressions") or []
-            valid_objs = [e for e in obj_exprs if e and str(e).strip()]
-            if len(valid_objs) < 2 and merged.get("problem_type") != "dynamic":
-                print("[OPT] No objectives defined yet — remaining idle")
-                return False, True, True, {"cmd": "idle"}
-
             merged.update({
                 "optimization_running":   True,
                 "optimization_completed": False,
                 "current_generation":     0,
+                "run_id":                 time.time(),
             })
-            start_optimization_process(app, merged)
+            # Stay idle when the problem is incomplete or a formula is rejected (the Problem page shows why)
+            if not start_optimization_process(app, merged):
+                return False, True, True, {"cmd": "idle"}
             return True, False, False, {"cmd": "start", "state": merged}
 
         if button_id == "btn-stop-optimization":
@@ -100,12 +95,12 @@ def register_optimization_callbacks(app):
         engine_running = app.optimization_engine.is_running
         NO = (no_update, no_update, no_update, no_update, no_update)
 
-        # Sync state from control store if needed
+        # Adopt the run control_optimization started, once — even if it already finished before this first tick
         if control_store:
             cmd = control_store.get("cmd")
-            if cmd == "start" and engine_running:
-                if not current_state or not current_state.get("optimization_running"):
-                    current_state = control_store.get("state", current_state or {})
+            started = control_store.get("state") or {}
+            if cmd == "start" and (current_state or {}).get("run_id") != started.get("run_id"):
+                current_state = started
             elif cmd == "stop":
                 new_state = (current_state or {}).copy()
                 new_state.update({"optimization_running": False, "optimization_completed": False})
@@ -126,6 +121,7 @@ def register_optimization_callbacks(app):
             new_state["optimization_running"] = False
             if not app.optimization_engine.stop_requested:
                 new_state["optimization_completed"] = True
+                new_state["runs_completed"] = new_state.get("runs_completed", 0) + 1
             if current_result is not None:
                 return _build_results_data(current_result, app), new_state, True, False, True
             return no_update, new_state, True, False, True
@@ -142,32 +138,25 @@ def register_optimization_callbacks(app):
     # ------------------------------------------------------------------
     # 3. update_algorithm_state
     #    Writes ONLY algo-config store (not app-state)
-    #    Also captures problem_type, cec2018_id, taut, nt
     # ------------------------------------------------------------------
     @app.callback(
         Output("algo-config", "data"),
-        Input("population-size",  "value"),
-        Input("max-generations",  "value"),
-        Input("random-seed",      "value"),
-        Input("algorithm-select", "value"),
-        Input("problem-type",     "value"),
-        Input("dynamic-taut",     "value"),
-        Input("dynamic-nt",       "value"),
-        State("algo-config",      "data"),
-        prevent_initial_call=True,
+        Input("population-size",      "value"),
+        Input("max-generations",      "value"),
+        Input("random-seed",          "value"),
+        Input("nsga2-crossover-prob", "value"),
+        Input("nsga2-mutation-prob",  "value"),
+        State("algo-config",          "data"),
     )
-    def update_algorithm_state(pop_size, max_gen, seed, algorithm,
-                               problem_type, taut, nt, current):
+    def update_algorithm_state(pop_size, max_gen, seed, cx_prob, mut_prob, current):
         cfg = current.copy() if current else {}
         cfg.update({
-            "population_size": pop_size  or 100,
-            "max_generations": max_gen   or 250,
-            "random_seed":     seed      or 42,
-            "algorithm":       algorithm or "nsga2",
-            "problem_type":    problem_type or "static",
-            "cec2018_id":      1,
-            "taut":            int(taut) if taut else 10,
-            "nt":              int(nt)   if nt   else 10,
+            "algorithm":       "nsga2",
+            "population_size": pop_size or 100,
+            "max_generations": max_gen  or 250,
+            "random_seed":     seed if seed is not None else 42,
+            "crossover_prob":  cx_prob if cx_prob is not None else 0.9,
+            "mutation_prob":   mut_prob,  # None → engine uses 1/n_var
         })
         return cfg
 
@@ -177,121 +166,16 @@ def register_optimization_callbacks(app):
 # ------------------------------------------------------------------
 
 def start_optimization_process(app, state):
+    """Start a run; returns False when the problem is incomplete or a formula is rejected."""
+    experiment = create_experiment_from_state(state)
+    if experiment is None:
+        return False
     try:
-        problem_type = state.get("problem_type", "static")
-        if problem_type == "dynamic":
-            _start_dynamic_optimization(app, state)
-        else:
-            experiment = create_experiment_from_state(state)
-            if experiment is None:
-                print("[OPT] No problem defined — aborting")
-                return
-            print(f"[OPT] Running: {len(experiment.problem.variables)} vars, "
-                  f"{len(experiment.problem.objectives)} objs, "
-                  f"pop={experiment.algorithm.population_size}, "
-                  f"gen={experiment.algorithm.max_generations}")
-            app.optimization_engine.run_optimization(experiment, lambda result: None)
-    except Exception as e:
-        import traceback; traceback.print_exc()
-        print(f"Error starting optimization: {e}")
-
-
-def _start_dynamic_optimization(app, state):
-    """Run CEC2018 dynamic problem using NSGA-II with tau incremented per generation."""
-    import threading
-    import numpy as np
-    from pymoo.algorithms.moo.nsga2 import NSGA2
-    from pymoo.operators.crossover.sbx import SBX
-    from pymoo.operators.mutation.pm import PM
-    from pymoo.operators.sampling.rnd import FloatRandomSampling
-    from pymoo.optimize import minimize
-    import sys, os
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-    from cec2018_dmop import CEC2018Problem
-    from ..core.optimization_engine import OptimizationResult
-
-    problem_id  = state.get("cec2018_id", 1)
-    taut        = state.get("taut", 10)
-    nt          = state.get("nt", 10)
-    pop_size    = state.get("population_size", 100)
-    max_gen     = state.get("max_generations", 250)
-    seed        = state.get("random_seed", 42)
-
-    problem = CEC2018Problem(problem_id=problem_id, taut=taut, nt=nt, n_var=10)
-
-    algorithm = NSGA2(
-        pop_size=pop_size,
-        sampling=FloatRandomSampling(),
-        crossover=SBX(prob=0.9, eta=15),
-        mutation=PM(prob=0.1, eta=20),
-        eliminate_duplicates=True,
-    )
-
-    engine = app.optimization_engine
-    engine.is_running = True
-    engine.stop_requested = False
-    engine.convergence_history = []
-    engine.diversity_history = []
-
-    def callback(algo):
-        if engine.stop_requested:
-            algo.termination.force_termination = True
-            return
-        # Advance time parameter
-        problem.set_tau(algo.n_gen)
-
-        pf = algo.opt.get("F")
-        pop_F = algo.pop.get("F")
-        pop_X = algo.pop.get("X")
-
-        metrics = {"n_solutions": len(pf), "hypervolume": 0.0, "spread": 0.0, "spacing": 0.0}
-        try:
-            from pymoo.indicators.hv import HV
-            ref = np.max(pf, axis=0) + 1.0
-            metrics["hypervolume"] = float(HV(ref_point=ref)(pf))
-        except Exception:
-            pass
-
-        engine.convergence_history.append({
-            "generation": algo.n_gen,
-            "hypervolume": metrics["hypervolume"],
-            "n_solutions": metrics["n_solutions"],
-        })
-
-        engine.current_result = OptimizationResult(
-            generation=algo.n_gen,
-            population=pop_X,
-            objectives=pop_F,
-            constraints=None,
-            pareto_front=pf,
-            metrics=metrics,
-            algorithm_info={
-                "algorithm": "nsga2",
-                "population_size": pop_size,
-                "n_gen": algo.n_gen,
-                "problem": f"DF{problem_id}",
-                "taut": taut,
-                "nt": nt,
-            },
-        )
-
-    def worker():
-        try:
-            minimize(
-                problem, algorithm,
-                ("n_gen", max_gen),
-                callback=callback,
-                verbose=False,
-                seed=seed,
-            )
-        except Exception as e:
-            print(f"Dynamic optimization error: {e}")
-        finally:
-            engine.is_running = False
-
-    t = threading.Thread(target=worker, daemon=True)
-    t.start()
-    engine.optimization_thread = t
+        app.optimization_engine.run_optimization(experiment)
+    except (ValueError, RuntimeError) as e:
+        print(f"Optimization not started: {e}")
+        return False
+    return True
 
 
 def _build_results_data(current_result, app):
@@ -299,6 +183,7 @@ def _build_results_data(current_result, app):
     results_data = {
         "generation":            current_result.generation,
         "pareto_front":          current_result.pareto_front.tolist(),
+        "pareto_set":            current_result.pareto_set.tolist(),
         "population_objectives": current_result.objectives.tolist(),
         "population":            current_result.population.tolist(),
         "metrics":               current_result.metrics,
@@ -313,8 +198,6 @@ def _build_results_data(current_result, app):
 
 def create_experiment_from_state(state):
     """Build ExperimentState from app-state. Returns None if problem not defined."""
-    from ..core.state_manager import ExperimentState
-
     var_names        = state.get("var_names") or []
     var_types        = state.get("var_types") or []
     var_lowers       = state.get("var_lowers") or []
@@ -323,6 +206,7 @@ def create_experiment_from_state(state):
     obj_directions   = state.get("obj_directions") or []
     obj_expressions  = state.get("obj_expressions") or []
     constraint_names = state.get("constraint_names") or []
+    constraint_types = state.get("constraint_types") or []
     constraint_exprs = state.get("constraint_expressions") or []
 
     # Require at least 1 variable and 2 objectives — no silent fallback
@@ -359,7 +243,7 @@ def create_experiment_from_state(state):
         if expr and str(expr).strip():
             constraints.append(Constraint(
                 name=constraint_names[i] if i < len(constraint_names) and constraint_names[i] else f"g{i}",
-                type="ineq",
+                type=constraint_types[i] if i < len(constraint_types) and constraint_types[i] else "ineq",
                 expression=str(expr).strip(),
             ))
 
@@ -374,10 +258,12 @@ def create_experiment_from_state(state):
         algorithm=state.get("algorithm", "nsga2"),
         population_size=int(state.get("population_size") or 100),
         max_generations=int(state.get("max_generations") or 250),
-        random_seed=int(state.get("random_seed") or 42),
+        random_seed=int(state["random_seed"]) if state.get("random_seed") is not None else 42,
         parameters={
-            "crossover_prob": 0.9, "crossover_eta": 15,
+            "crossover_prob": state.get("crossover_prob", 0.9), "crossover_eta": 15,
             "mutation_eta": 20,
+            # Leave mutation_prob out when unset so the engine uses 1/n_var
+            **({"mutation_prob": state["mutation_prob"]} if state.get("mutation_prob") is not None else {}),
         },
         many_objective_options=[], dynamic_options=[],
     )

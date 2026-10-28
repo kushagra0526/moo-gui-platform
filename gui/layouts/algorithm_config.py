@@ -2,12 +2,13 @@
 Algorithm configuration layout for MOEA selection and parameter tuning
 """
 
-from dash import dcc, html
+from dash import html
 import dash_bootstrap_components as dbc
 
-def create_algorithm_config_layout():
-    """Create the algorithm configuration interface."""
-    
+def create_algorithm_config_layout(saved=None):
+    """Create the algorithm configuration interface, restoring saved values if available."""
+    saved = saved or {}
+
     return dbc.Container([
         dbc.Row([
             dbc.Col([
@@ -57,7 +58,7 @@ def create_algorithm_config_layout():
                                 dbc.Input(
                                     id="population-size",
                                     type="number",
-                                    value=100,
+                                    value=saved.get("population_size", 100),
                                     min=10,
                                     max=1000,
                                     step=10
@@ -68,7 +69,7 @@ def create_algorithm_config_layout():
                                 dbc.Input(
                                     id="max-generations",
                                     type="number",
-                                    value=250,
+                                    value=saved.get("max_generations", 250),
                                     min=10,
                                     max=10000,
                                     step=10
@@ -79,7 +80,7 @@ def create_algorithm_config_layout():
                                 dbc.Input(
                                     id="random-seed",
                                     type="number",
-                                    value=42,
+                                    value=saved.get("random_seed", 42),
                                     min=0,
                                     max=99999,
                                     step=1
@@ -92,46 +93,11 @@ def create_algorithm_config_layout():
         ], className="mb-4"),
         
         # Algorithm-Specific Parameters
-        html.Div(id="algorithm-specific-params"),
-
-        # Dynamic problem parameters — shown only when problem-type is dynamic
-        html.Div([
-            dbc.Card([
-                dbc.CardHeader("Dynamic Problem Parameters (CEC2018)"),
-                dbc.CardBody([
-                    dbc.Row([
-                        dbc.Col([
-                            html.Label("Change Frequency (taut):", className="form-label"),
-                            dbc.Input(
-                                id="dynamic-taut",
-                                type="number",
-                                value=10,
-                                min=1,
-                                max=500,
-                                step=1,
-                            ),
-                            html.Small("Generations between environment changes", className="text-muted"),
-                        ], width=6),
-                        dbc.Col([
-                            html.Label("Change Severity (nt):", className="form-label"),
-                            dbc.Input(
-                                id="dynamic-nt",
-                                type="number",
-                                value=10,
-                                min=1,
-                                max=100,
-                                step=1,
-                            ),
-                            html.Small("Controls how much the Pareto front shifts", className="text-muted"),
-                        ], width=6),
-                    ]),
-                ]),
-            ], className="mb-4"),
-        ], id="dynamic-params-div", style={"display": "none"}),
+        create_nsga2_params(saved),
 
     ], fluid=True)
 
-def create_nsga2_params():
+def create_nsga2_params(saved):
     """Create simplified NSGA-II parameter controls."""
     return dbc.Card([
         dbc.CardHeader("NSGA-II Parameters"),
@@ -142,7 +108,7 @@ def create_nsga2_params():
                     dbc.Input(
                         id="nsga2-crossover-prob",
                         type="number",
-                        value=0.9,
+                        value=saved.get("crossover_prob", 0.9),
                         min=0.0,
                         max=1.0,
                         step=0.1
@@ -153,10 +119,11 @@ def create_nsga2_params():
                     dbc.Input(
                         id="nsga2-mutation-prob",
                         type="number",
-                        value=0.1,
+                        value=saved.get("mutation_prob"),
+                        placeholder="1 / number of variables",
                         min=0.0,
                         max=1.0,
-                        step=0.1
+                        step=0.01
                     )
                 ], width=6)
             ])
