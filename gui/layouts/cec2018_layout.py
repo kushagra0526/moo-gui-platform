@@ -210,15 +210,24 @@ def create_cec2018_layout():
         dbc.CardBody([
             dbc.Row([
                 dbc.Col([
+                    html.Label("Change Response", className="form-label small"),
+                    dbc.Select(id="cec-strategy", value="isvm-loras", options=[
+                        {"label": "None (keep population)", "value": "none"},
+                        {"label": "Random restart",         "value": "random"},
+                        {"label": "ISVM-SMOTE (paper)",     "value": "isvm-smote"},
+                        {"label": "ISVM-LoRAS",             "value": "isvm-loras"},
+                    ]),
+                ], width=3),
+                dbc.Col([
                     html.Label("Population Size", className="form-label small"),
                     dbc.Input(id="cec-pop-size",  type="number",
                               value=100, min=20, max=500, step=10),
-                ], width=3),
+                ], width=2),
                 dbc.Col([
-                    html.Label("Max Generations", className="form-label small"),
-                    dbc.Input(id="cec-max-gen",   type="number",
-                              value=200, min=10, max=2000, step=10),
-                ], width=3),
+                    html.Label("Environment Changes", className="form-label small"),
+                    dbc.Input(id="cec-changes",   type="number",
+                              value=30, min=1, max=100, step=1),
+                ], width=2),
                 dbc.Col([
                     html.Label("Change Freq (taut)", className="form-label small"),
                     dbc.Input(id="cec-taut",       type="number",
@@ -233,7 +242,7 @@ def create_cec2018_layout():
                     html.Label("Live Update", className="form-label small"),
                     dbc.Switch(id="cec-live-toggle", value=True,
                                label="On", className="mt-1"),
-                ], width=2),
+                ], width=1),
             ], className="mb-3"),
             dbc.Row([
                 dbc.Col([
@@ -268,7 +277,7 @@ def create_cec2018_layout():
             dbc.Card([
                 dbc.CardHeader([
                     html.Span("Pareto Front", style={"fontWeight": "600"}),
-                    dbc.Badge(id="cec-gen-badge", children="Gen 0",
+                    dbc.Badge(id="cec-gen-badge", children="Env 0",
                               color="secondary", className="ms-2"),
                 ]),
                 dbc.CardBody([
@@ -289,9 +298,10 @@ def create_cec2018_layout():
             dbc.Card([
                 dbc.CardHeader("Metrics"),
                 dbc.CardBody([
-                    _metric_row("Generation",  "cec-metric-gen",  "fas fa-clock"),
-                    _metric_row("Hypervolume", "cec-metric-hv",   "fas fa-cube"),
-                    _metric_row("PF Size",     "cec-metric-pf",   "fas fa-dot-circle"),
+                    _metric_row("Environment", "cec-metric-env",  "fas fa-clock"),
+                    _metric_row("IGD",         "cec-metric-igd",  "fas fa-ruler"),
+                    _metric_row("MIGD",        "cec-metric-migd", "fas fa-chart-line"),
+                    _metric_row("MHV",         "cec-metric-mhv",  "fas fa-cube"),
                     _metric_row("Time Step t", "cec-metric-t",    "fas fa-hourglass"),
                 ]),
             ], className="mb-3",
@@ -301,11 +311,11 @@ def create_cec2018_layout():
 
             # HV over time
             dbc.Card([
-                dbc.CardHeader("Hypervolume over Time"),
+                dbc.CardHeader("IGD per Environment"),
                 dbc.CardBody([
                     dcc.Graph(
-                        id="cec-hv-plot",
-                        figure=_empty_fig("HV"),
+                        id="cec-igd-plot",
+                        figure=_empty_fig("IGD"),
                         style={"height": "200px"},
                         config={"displayModeBar": False},
                     ),

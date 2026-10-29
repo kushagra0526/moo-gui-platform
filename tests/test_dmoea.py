@@ -85,6 +85,13 @@ class TestMetricsAndRun(unittest.TestCase):
             self.assertEqual(a["migd"], run(2, strategy=strategy, **kwargs)["migd"])
         self.assertEqual(len(a["acceptance"]), 2)
 
+    def test_no_reaction_and_stopping_from_the_hook(self):
+        seen = []
+        r = run(2, strategy="none", nt=10, taut=3, n_changes=5, pop_size=20, seed=3,
+                on_environment=lambda info: seen.append(info["env"]) or info["env"] == 1)
+        self.assertEqual(seen, [0, 1])
+        self.assertEqual(len(r["igd"]), 2)
+
 
 if __name__ == "__main__":
     unittest.main()

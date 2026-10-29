@@ -4,7 +4,7 @@ CEC2018 page callbacks.
 Stores
 ------
 cec-state   (memory) — problem config + running flag
-cec-results (memory) — latest pareto front + hv history
+cec-results (memory) — latest pareto front + IGD per environment
 
 Outputs (each has exactly ONE writer)
 --------------------------------------
@@ -15,13 +15,12 @@ cec-stop-btn.disabled   → cec_control
 cec-interval.disabled   → cec_control
 cec-selected-label      → handle_cec_select
 cec-pareto-plot.figure  → cec_update_plots
-cec-hv-plot.figure      → cec_update_plots
+cec-igd-plot.figure     → cec_update_plots
 cec-gen-badge.children  → cec_update_metrics
-cec-metric-gen.children → cec_update_metrics
-cec-metric-hv.children  → cec_update_metrics
-cec-metric-pf.children  → cec_update_metrics
-cec-metric-t.children   → cec_update_metrics
+cec-metric-env/igd/migd/mhv/t.children → cec_update_metrics
 cec-status-text.children→ cec_update_metrics
+
+Runs go through dmoea.run, the same loop the benchmark uses, so the page and the experiments match.
 """
 
 import threading
@@ -29,14 +28,9 @@ import numpy as np
 import plotly.graph_objects as go
 
 from dash import Input, Output, State, callback_context, no_update, ALL, html
-from pymoo.algorithms.moo.nsga2 import NSGA2
-from pymoo.operators.crossover.sbx import SBX
-from pymoo.operators.mutation.pm import PM
-from pymoo.operators.sampling.rnd import FloatRandomSampling
-from pymoo.optimize import minimize
-from pymoo.indicators.hv import HV
 
-from cec2018_dmop import CEC2018Problem, N_OBJ, true_front
+from cec2018_dmop import N_OBJ, true_front
+from dmoea import run
 
 # Max population points to render (downsampling for performance)
 _MAX_POP_RENDER = 200
@@ -78,15 +72,16 @@ def register_cec2018_callbacks(app):
         Input("cec-run-btn",    "n_clicks"),
         Input("cec-stop-btn",   "n_clicks"),
         Input("cec-problem-id", "data"),
+        State("cec-strategy",   "value"),
         State("cec-pop-size",   "value"),
-        State("cec-max-gen",    "value"),
+        State("cec-changes",    "value"),
         State("cec-taut",       "value"),
         State("cec-nt",         "value"),
         State("cec-state",      "data"),
         prevent_initial_call=True,
     )
     def cec_control(run_clicks, stop_clicks, pid,
-                    pop_size, max_gen, taut, nt, current_state):
+                    strategy, pop_size, changes, taut, nt, current_state):
         ctx = callback_context
         if not ctx.triggered:
             return no_update, no_update, no_update, no_update
@@ -105,11 +100,11 @@ def register_cec2018_callbacks(app):
             state = {
                 "problem_id":  pid,
                 "running":     True,
-                "pop_size":    pop_size or 100,
-                "max_gen":     max_gen  or 200,
-                "taut":        taut     or 10,
-                "nt":          nt       or 10,
-                "current_gen": 0,
+                "strategy":    strategy or "isvm-loras",
+                "pop_size":    int(pop_size or 100),
+                "changes":     int(changes or 30),
+                "taut":        int(taut or 10),
+                "nt":          int(nt or 10),
             }
             _launch_cec_thread(app, state)
             return True, False, False, state
@@ -160,7 +155,7 @@ def register_cec2018_callbacks(app):
     # ── 4. Plot update ───────────────────────────────────────────────
     @app.callback(
         Output("cec-pareto-plot", "figure"),
-        Output("cec-hv-plot",     "figure"),
+        Output("cec-igd-plot",    "figure"),
         Input("cec-results", "data"),
         State("cec-state",   "data"),
         prevent_initial_call=True,
@@ -171,7 +166,7 @@ def register_cec2018_callbacks(app):
 
         pf  = np.array(results.get("pareto_front", []))
         pop = np.array(results.get("population_objectives", []))
-        hv_hist = results.get("hv_history", [])
+        igd_hist = results.get("igd_history", [])
         pid = (state or {}).get("problem_id", 1)
         n_obj = pf.shape[1] if len(pf) > 0 else 2
 
@@ -237,39 +232,34 @@ def register_cec2018_callbacks(app):
 
         pareto_fig.update_layout(title=f"DF{pid} — Pareto Front")
 
-        # ── HV over time plot ──
-        hv_fig = go.Figure()
-        hv_fig.update_layout(
+        # ── IGD per environment (log scale, like the paper's Fig. 4) ──
+        igd_fig = go.Figure()
+        igd_fig.update_layout(
             template="plotly_dark",
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(15,18,30,0.8)",
-            uirevision="cec-hv",
+            uirevision="cec-igd",
             margin=dict(l=40, r=10, t=20, b=30),
             showlegend=False,
         )
-        if hv_hist:
-            gens = [h["gen"] for h in hv_hist]
-            hvs  = [h["hv"]  for h in hv_hist]
-            hv_fig.add_trace(go.Scattergl(
-                x=gens, y=hvs,
-                mode="lines",
+        if igd_hist:
+            igd_fig.add_trace(go.Scatter(
+                x=list(range(len(igd_hist))), y=igd_hist,
+                mode="lines+markers",
                 line=dict(color="#00d4ff", width=2),
-                fill="tozeroy",
-                fillcolor="rgba(0,212,255,0.08)",
             ))
-            hv_fig.update_xaxes(title_text="Generation",
-                                 gridcolor="rgba(255,255,255,0.05)")
-            hv_fig.update_yaxes(title_text="HV",
-                                 gridcolor="rgba(255,255,255,0.05)")
+            igd_fig.update_xaxes(title_text="Environment", gridcolor="rgba(255,255,255,0.05)")
+            igd_fig.update_yaxes(title_text="IGD", type="log", gridcolor="rgba(255,255,255,0.05)")
 
-        return pareto_fig, hv_fig
+        return pareto_fig, igd_fig
 
     # ── 5. Metrics update ────────────────────────────────────────────
     @app.callback(
         Output("cec-gen-badge",    "children"),
-        Output("cec-metric-gen",   "children"),
-        Output("cec-metric-hv",    "children"),
-        Output("cec-metric-pf",    "children"),
+        Output("cec-metric-env",   "children"),
+        Output("cec-metric-igd",   "children"),
+        Output("cec-metric-migd",  "children"),
+        Output("cec-metric-mhv",   "children"),
         Output("cec-metric-t",     "children"),
         Output("cec-status-text",  "children"),
         Input("cec-results", "data"),
@@ -278,21 +268,18 @@ def register_cec2018_callbacks(app):
     )
     def cec_update_metrics(results, state):
         if not results:
-            return no_update, no_update, no_update, no_update, no_update, no_update
+            return (no_update,) * 7
 
-        gen    = results.get("generation", 0)
-        hv     = results.get("hypervolume", 0.0)
-        pf_sz  = results.get("pf_size", 0)
-        t_val  = results.get("t_value", 0.0)
-        done   = results.get("done", False)
-
-        status = "Completed" if done else f"Running… gen {gen}"
+        env, total = results["environment"], results["n_changes"]
+        fmt = lambda v: "—" if v is None else f"{v:.4f}"  # MIGD/MHV need at least one change
+        status = "Completed" if results.get("done") else f"Running… environment {env}/{total}"
         return (
-            f"Gen {gen}",
-            str(gen),
-            f"{hv:.4f}",
-            str(pf_sz),
-            f"{t_val:.4f}",
+            f"Env {env}",
+            f"{env}/{total}",
+            fmt(results["igd"]),
+            fmt(results["migd"]),
+            fmt(results["mhv"]),
+            f"{results['t_value']:.4f}",
             status,
         )
 
@@ -469,79 +456,41 @@ def _launch_cec_thread(app, state):
     app._cec_stop_flag  = False
     app._cec_running    = True
     app._cec_latest_result = None
+    app._cec_run_id = run_id = object()
 
-    t = threading.Thread(target=_cec_worker, args=(app, state), daemon=True)
-    t.start()
+    threading.Thread(target=_cec_worker, args=(app, state, run_id), daemon=True).start()
 
 
-def _cec_worker(app, state):
+def _cec_worker(app, state, run_id):
+    def report(info):
+        if app._cec_run_id is not run_id:  # a newer run replaced this one: stop without writing
+            return True
+        igds, hvs = info["igd"], info["hv"]
+        app._cec_latest_result = {
+            "environment":           info["env"],
+            "n_changes":             state["changes"],
+            "pareto_front":          info["front"].tolist(),
+            "population_objectives": _downsample_list(info["population"], _MAX_POP_RENDER),
+            "igd":                   igds[-1],
+            "migd":                  float(np.mean(igds[1:])) if len(igds) > 1 else None,
+            "mhv":                   float(np.mean(hvs[1:])) if len(hvs) > 1 else None,
+            "t_value":               float(info["time"]),
+            "igd_history":           list(igds),
+            "done":                  False,
+        }
+        return app._cec_stop_flag
+
     try:
-        pid     = state["problem_id"]
-        pop_sz  = state.get("pop_size",  100)
-        max_gen = state.get("max_gen",   200)
-        taut    = state.get("taut",       10)
-        nt      = state.get("nt",         10)
-
-        problem = CEC2018Problem(problem_id=pid, taut=taut, nt=nt, n_var=10)
-        hv_history = []
-        hv_ref = []  # fixed on the first generation so HV is comparable over time
-
-        algo = NSGA2(
-            pop_size=pop_sz,
-            sampling=FloatRandomSampling(),
-            crossover=SBX(prob=0.9, eta=15),
-            mutation=PM(prob=0.1, eta=20),
-            eliminate_duplicates=True,
-        )
-
-        def callback(a):
-            if app._cec_stop_flag:
-                a.termination.force_termination = True
-                return
-
-            problem.set_tau(a.n_gen)
-            pf   = a.opt.get("F")
-            popF = a.pop.get("F")
-
-            # Compute HV
-            hv_val = 0.0
-            if not hv_ref:
-                hv_ref.append(np.max(pf, axis=0) + 1.0)
-            try:
-                hv_val = float(HV(ref_point=hv_ref[0])(pf))
-            except Exception:
-                pass
-            t_val = problem.time
-
-            hv_history.append({"gen": a.n_gen, "hv": hv_val})
-
-            app._cec_latest_result = {
-                "generation":            a.n_gen,
-                "pareto_front":          pf.tolist(),
-                "population_objectives": _downsample_list(popF, 200),
-                "hypervolume":           hv_val,
-                "pf_size":               len(pf),
-                "t_value":               float(t_val),
-                "hv_history":            hv_history[-200:],  # keep last 200 pts
-                "done":                  False,
-            }
-
-        minimize(
-            problem, algo,
-            ("n_gen", max_gen),
-            callback=callback,
-            verbose=False,
-            seed=42,
-        )
-
-        # Mark done
-        if app._cec_latest_result:
-            app._cec_latest_result["done"] = True
-
+        # "isvm-loras" -> strategy "isvm" with LoRAS oversampling; "none" / "random" need no oversampler
+        strategy, _, oversampling = state["strategy"].partition("-")
+        run(state["problem_id"], nt=state["nt"], taut=state["taut"], n_changes=state["changes"],
+            strategy=strategy, oversampling=oversampling or "loras", pop_size=state["pop_size"],
+            seed=42, on_environment=report)
     except Exception as e:
         print(f"CEC worker error: {e}")
     finally:
-        app._cec_running = False
+        if app._cec_run_id is run_id:
+            app._cec_running = False
 
 
 def _downsample(arr: np.ndarray, n: int) -> np.ndarray:

@@ -34,13 +34,17 @@ def hv(F, pf):
 
 
 def run(problem_id, nt=10, taut=10, n_changes=30, strategy="isvm", oversampling="loras", r=5, k=5,
-        pop_size=None, n_var=10, history=True, C=None, gamma=None, seed=0):
+        pop_size=None, n_var=10, history=True, C=None, gamma=None, seed=0, on_environment=None):
     """One run on DF<problem_id>.
 
     Environment e lasts taut generations at time t = e / nt (the paper's t = floor(tau / taut) / nt);
     there are n_changes changes after the first environment, at known times. On each change the next
-    initial population is predicted by the ISVM (strategy "isvm") or drawn at random (strategy "random",
-    the paper's DA baseline). Population size defaults to 100 for 2 objectives and 150 for 3.
+    initial population is predicted by the ISVM (strategy "isvm"), drawn at random (strategy "random",
+    the paper's DA baseline) or kept from the last generation (strategy "none", no reaction).
+    Population size defaults to 100 for 2 objectives and 150 for 3.
+
+    on_environment, if given, is called after each environment with a dict ("env", "time", "front",
+    "population" objective values, and the "igd"/"hv" lists so far); returning True stops the run.
 
     Returns per-environment "igd" and "hv" (measured at the end of each environment), "migd" and "mhv"
     averaged over the n_changes environments that follow a change (Eqs. 18 and 20), "migd_every_gen"
@@ -67,12 +71,17 @@ def run(problem_id, nt=10, taut=10, n_changes=30, strategy="isvm", oversampling=
                        seed=int(rng.integers(2 ** 31)), callback=track, verbose=False)
         igds.append(igd(res.F, pf))
         hvs.append(hv(res.F, pf))
+        if on_environment and on_environment({"env": env, "time": problem.time, "front": res.F,
+                                              "population": res.pop.get("F"), "igd": igds, "hv": hvs}):
+            break
         if env == n_changes:
             break
 
         # Environment changes: build the next initial population
         if strategy == "random":
             X0 = xl + rng.random((pop_size, n_var)) * (xu - xl)
+        elif strategy == "none":
+            X0 = res.pop.get("X")
         else:
             X, y = training_set(res.X, xl, xu, oversampling, r, k, rng)
             predictor.update(X, y)

@@ -51,18 +51,15 @@ def register_auth_callbacks(app):
     @app.callback(
         Output("url", "pathname"),
         Input("auth-state", "data"),
+        State("url", "pathname"),
         prevent_initial_call=True,
     )
-    def handle_url(auth_state):
-        if not isinstance(auth_state, dict):
-            return no_update
-
-        if auth_state.get("authenticated"):
-            # Always go to dashboard on login
+    def handle_url(auth_state, pathname):
+        # auth-state also fires when the browser restores it on reload; only leave the root/logout URL,
+        # so reloading or bookmarking an app page stays on that page
+        if isinstance(auth_state, dict) and auth_state.get("authenticated") and pathname in (None, "/", "/logout"):
             return "/dashboard"
-        else:
-            # Always go to root on logout (clears /logout from URL)
-            return "/"
+        return no_update
 
     # ── 3. auth-alert — SOLE writer ─────────────────────────────────
     @app.callback(

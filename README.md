@@ -28,6 +28,7 @@ Multi-objective optimization often requires manual scripting and post-processing
 ```
 moo-gui-platform/
 ├── assets/                 # Themes (dark/light), typography, and custom CSS
+├── benchmarks/             # ISVM-DMOEA benchmark on DF1-DF14 and paper-style result tables
 ├── cec2018_dmop/           # CEC2018 dynamic benchmarks (DF1-DF14, via pymoo) with the competition's time schedule
 ├── database/               # User state persistence (users.json)
 ├── dmoea/                  # ISVM-DMOEA prediction for dynamic problems (SMOTE or LoRAS oversampling)
@@ -155,6 +156,14 @@ next initial population. The oversampling step can use SMOTE (as in the paper) o
 from dmoea import run
 result = run(2, nt=10, taut=10, strategy="isvm", oversampling="loras", seed=1)
 print(result["migd"], result["mhv"])
+```
+
+To reproduce the paper's experiments (random restart vs ISVM-SMOTE vs ISVM-LoRAS, 14 problems × 3
+configurations; results and tables are written to `experiments/`):
+
+```bash
+python benchmarks/isvm_benchmark.py run --runs 20 --workers 4   # resumable
+python benchmarks/isvm_benchmark.py tables
 ```
 
 Differences from the paper: the incremental SVM retrains on the previous support vectors plus new samples
