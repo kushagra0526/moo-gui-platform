@@ -30,6 +30,7 @@ moo-gui-platform/
 ├── assets/                 # Themes (dark/light), typography, and custom CSS
 ├── cec2018_dmop/           # CEC2018 dynamic benchmarks (DF1-DF14, via pymoo) with the competition's time schedule
 ├── database/               # User state persistence (users.json)
+├── dmoea/                  # ISVM-DMOEA prediction for dynamic problems (SMOTE or LoRAS oversampling)
 ├── examples/               # Programmatic usage and automation scripts
 ├── gui/                    # Dash application package
 │   ├── auth/               # Authentication and password hashing
@@ -140,6 +141,25 @@ Keep a single worker: a running optimization lives in that process's memory, so 
 | `MOO_GUI_HOST` | `0.0.0.0` | Bind host address |
 | `MOO_GUI_DEBUG` | `false` | Enable Dash hot-reloading |
 | `MOO_GUI_SECRET_KEY` | random per start | Signs the login session cookie. Set it so logins survive restarts |
+
+---
+
+## Dynamic Prediction Module (`dmoea/`)
+
+Implements ISVM-DMOEA (Xu et al., *IEEE TEVC* 26(4), 2022) on the CEC2018 DF problems with NSGA-II as the
+static optimizer. When the environment changes, an RBF-SVM trained on past Pareto-optimal solutions picks the
+next initial population. The oversampling step can use SMOTE (as in the paper) or LoRAS
+(Bej et al., *Machine Learning* 110, 2021).
+
+```python
+from dmoea import run
+result = run(2, nt=10, taut=10, strategy="isvm", oversampling="loras", seed=1)
+print(result["migd"], result["mhv"])
+```
+
+Differences from the paper: the incremental SVM retrains on the previous support vectors plus new samples
+instead of the exact Cauwenberghs–Poggio update, variables are scaled to [0, 1] before oversampling, and the
+prediction step falls back to the best-scoring candidates when too few random points are classified optimal.
 
 ---
 

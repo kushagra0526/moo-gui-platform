@@ -9,8 +9,9 @@ plotly>=5.18
 # Optimization
 pymoo>=0.6.1
 
-# Numerics
+# Numerics / ML (scikit-learn: SVM for the dmoea prediction module)
 numpy>=1.24
+scikit-learn>=1.3
 
 # Optional: OCR support for equation upload
 # Uncomment if you need image-to-equation parsing
