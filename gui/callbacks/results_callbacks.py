@@ -6,7 +6,7 @@ import csv
 import io
 import json
 
-from dash import Input, Output, State, dcc, html
+from dash import Input, Output, State, dcc, html, no_update
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
 import numpy as np
@@ -132,8 +132,12 @@ def register_results_callbacks(app):
         State("optimization-results", "data"),
         prevent_initial_call=True,
     )
-    def save_experiment(_n, app_state, algo_config, results_data):
+    def save_experiment(n_clicks, app_state, algo_config, results_data):
         """Download the problem, algorithm settings and latest results as JSON."""
+        # The button is re-inserted on every page change and Dash then fires this callback despite
+        # prevent_initial_call (the Download sits outside the page), so only a real click downloads
+        if not n_clicks:
+            return no_update
         return _experiment_download("experiment", "", app_state, algo_config, results_data, "json")
 
     # Results page "Export"
@@ -148,8 +152,10 @@ def register_results_callbacks(app):
         State("optimization-results", "data"),
         prevent_initial_call=True,
     )
-    def export_results(_n, fmt, name, description, app_state, algo_config, results_data):
+    def export_results(n_clicks, fmt, name, description, app_state, algo_config, results_data):
         """Download the Pareto set as CSV or the whole experiment as JSON."""
+        if not n_clicks:  # same as save_experiment: opening the Results page is not a click
+            return no_update
         return _experiment_download(name or "experiment", description or "",
                                     app_state, algo_config, results_data, fmt)
 
