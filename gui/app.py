@@ -83,7 +83,7 @@ def create_app():
         if not user_data:
             return SHOW, None
 
-        valid_paths = ("/dashboard", "/problem", "/algorithm", "/visualization", "/results", "/cec2018")
+        valid_paths = ("/dashboard", "/problem", "/algorithm", "/visualization", "/results", "/cec2018", "/prediction")
         safe = pathname if pathname in valid_paths else "/dashboard"
 
         return HIDE, create_main_layout(

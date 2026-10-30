@@ -158,6 +158,9 @@ result = run(2, nt=10, taut=10, strategy="isvm", oversampling="loras", seed=1)
 print(result["migd"], result["mhv"])
 ```
 
+In the app, the **Dynamic Prediction** page runs random restart, ISVM-SMOTE and ISVM-LoRAS on one DF problem
+and shows their IGD per environment with a MIGD/MHV summary.
+
 To reproduce the paper's experiments (random restart vs ISVM-SMOTE vs ISVM-LoRAS, 14 problems × 3
 configurations; results and tables are written to `experiments/`):
 

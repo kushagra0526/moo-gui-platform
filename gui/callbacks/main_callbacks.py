@@ -9,6 +9,7 @@ from .results_callbacks import register_results_callbacks
 from .optimization_callbacks import register_optimization_callbacks
 from .equation_callbacks import register_equation_callbacks
 from .cec2018_callbacks import register_cec2018_callbacks
+from .prediction_callbacks import register_prediction_callbacks
 
 def register_callbacks(app):
     """Register all application callbacks."""
@@ -19,3 +20,4 @@ def register_callbacks(app):
     register_optimization_callbacks(app)
     register_equation_callbacks(app)
     register_cec2018_callbacks(app)
+    register_prediction_callbacks(app)

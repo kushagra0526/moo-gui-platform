@@ -11,6 +11,7 @@ from .algorithm_config      import create_algorithm_config_layout
 from .visualization         import create_visualization_layout
 from .results               import create_results_layout
 from .cec2018_layout        import create_cec2018_layout
+from .prediction_layout     import create_prediction_layout
 
 # Map URL pathnames → page factory functions
 PAGE_MAP = {
@@ -20,6 +21,7 @@ PAGE_MAP = {
     "/visualization": create_visualization_layout,
     "/results":      create_results_layout,
     "/cec2018":      create_cec2018_layout,
+    "/prediction":   create_prediction_layout,
 }
 
 def _nav_link(icon_cls, label, href, active_path):
@@ -69,6 +71,7 @@ def create_main_layout(user_data=None, pathname="/dashboard", engine_running=Fal
             _nav_link("fas fa-table",      "Results & Export",  "/results",      pathname),
             html.Hr(className="my-1", style={"borderColor": "rgba(0,212,255,0.15)"}),
             _nav_link("fas fa-atom",       "CEC2018 DMOP",      "/cec2018",      pathname),
+            _nav_link("fas fa-brain",      "Dynamic Prediction","/prediction",   pathname),
         ], className="mb-3"),
 
         html.Hr(className="my-2"),
